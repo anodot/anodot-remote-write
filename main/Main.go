@@ -1,16 +1,16 @@
 package main
 
 import (
-	"anodot/anodot-remote-write/anodotServer"
-	"anodot/anodot-common/anodotSubmitter"
+	"github.com/anodot/anodot-remote-write/anodotServer"
+	"github.com/anodot/anodot-common/anodotSubmitter"
 	"flag"
-	"anodot/anodot-remote-write/remoteStats"
+	"github.com/anodot/anodot-remote-write/remoteStats"
 	"time"
 	"os"
 	"log"
 	"fmt"
 	"runtime"
-	"anodot/anodot-common/anodotParser"
+	"github.com/anodot/anodot-common/anodotParser"
 	"github.com/rcrowley/go-metrics"
 )
 

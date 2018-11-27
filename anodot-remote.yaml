@@ -1,0 +1,39 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: anodot-prometheus
+  namespace: monitoring
+spec:
+  ports:
+    - name: api
+      port: 1234
+      targetPort: 1234
+  selector:
+    run: anodot-prometheus
+  type: ClusterIP
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: anodot-prometheus
+  namespace: monitoring
+spec:
+  template:
+    metadata:
+      labels:
+        run: anodot-prometheus
+    spec:
+      containers:
+      - name: anodot-prometheus
+        imagePullPolicy: Always
+        image: "anodot-remote:latest"
+        resources:
+          requests:
+            memory: "4Gi"
+            cpu: "150m"
+          limits:
+            memory: "5Gi"
+            cpu: "300m"
+        command: ["/go/bin/server"]
+        args: ["-url=https://api.anodot.com","-token="]
+        imagePullPolicy: Always

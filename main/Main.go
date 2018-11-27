@@ -4,7 +4,7 @@ import (
 	"github.com/anodot/anodot-remote-write/anodotServer"
 	"github.com/anodot/anodot-common/anodotSubmitter"
 	"flag"
-	"github.com/anodot/anodot-remote-write/remoteStats"
+	"github.com/anodot/anodot-common/remoteStats"
 	"time"
 	"os"
 	"log"

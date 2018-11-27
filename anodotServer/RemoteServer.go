@@ -10,7 +10,7 @@ import (
 	"github.com/prometheus/common/model"
 	"github.com/anodot/anodot-common/anodotParser"
 	"github.com/anodot/anodot-common/anodotSubmitter"
-	"github.com/anodot/anodot-remote-write/remoteStats"
+	"github.com/anodot/anodot-common/remoteStats"
 	"github.com/golang/protobuf/proto"
 )
 

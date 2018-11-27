@@ -5,7 +5,7 @@ import (
 	"github.com/prometheus/common/model"
 	"math"
 	"github.com/anodot/anodot-common/anodotParser"
-	"github.com/anodot/anodot-remote-write/remoteStats"
+	"github.com/anodot/anodot-common/remoteStats"
 )
 
 func TestReceiver(t *testing.T) {

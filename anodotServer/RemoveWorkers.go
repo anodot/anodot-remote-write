@@ -4,7 +4,7 @@ import (
 	"github.com/anodot/anodot-common/anodotSubmitter"
 	"github.com/anodot/anodot-common/anodotParser"
 	"sync/atomic"
-	"../remoteStats"
+	"../../anodot-common/remoteStats"
 	"sync"
 	"time"
 	"log"

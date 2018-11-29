@@ -8,7 +8,8 @@ Anodot Prometheus Remote Write
 -  `cd anodot-remote-write`
 -  `GOOS=linux go build -o server main.go`
 -  `docker build -t anodot-remote .`
-Push anodot-remote:<version> to repo 
+
+Push anodot-remote:<version> to repo. 
 
 For K8s cluster deploy in Monitoring namespace:
 - Change deploy script as follows:

@@ -13,7 +13,7 @@ docker build -t anodot-remote .
 //For K8s cluster deploy in Monitoring namespace:
 Change deploy script as follows:
 * . change image name in k8s Deployment
-* . change  args: ["-url=https://api.anodot.com","-token=<API TOKEN>"]
+* . change  args: ["-url=https://api.anodot.com","-token=<font color="red">API TOKEN"</font>]
 kubectl apply -f anodot-remote.yaml
 
 

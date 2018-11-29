@@ -24,20 +24,20 @@ Docker 1.18ce
 Prometheus Server on K8s cluster
 
 ### Installing On K8s
-On Prometheous Yaml add Remote Write to global settings, e.g.:
+> On Prometheous Yaml add Remote Write to global settings, e.g.:
 
-  prometheus.yml: |-
-    global:
-      scrape_interval: 60s
-      evaluation_interval: 60s
-    remote_write:
-      - url: "http://anodot-prometheus.monitoring:1234/receive"
+>  prometheus.yml: |-
+>    global:
+>      scrape_interval: 60s
+>      evaluation_interval: 60s
+>    remote_write:
+>      - url: "http://anodot-prometheus.monitoring:1234/receive"
 
 ## Running the tests
 
 Tests provided under anodotRemoteTests:
-*  cd anodotRemoteTests 
-*  go test .
+*  `cd anodotRemoteTests` 
+*  `go test .`
 
 
 ## Authors

@@ -20,9 +20,9 @@ For K8s cluster deploy in Monitoring namespace:
 
 ### Prerequisites
 
-Go 1.x 
-Docker 1.18ce
-Prometheus Server on K8s cluster
+Go 1.x. 
+Docker 1.18ce.
+Prometheus Server on K8s cluster.
 
 ### Installing On K8s
  On Prometheous Yaml add Remote Write to global settings, e.g.:

@@ -8,12 +8,12 @@ Anodot Prometheus Remote Write
 -  `cd anodot-remote-write`
 -  `GOOS=linux go build -o server main.go`
 -  `docker build -t anodot-remote .`
-- //push anodot-remote:<version> to repo 
+-  push anodot-remote:<version> to repo 
 
-//For K8s cluster deploy in Monitoring namespace:
--Change deploy script as follows:
-* . change image name in k8s Deployment
-* . change  args: ["-url=https://api.anodot.com","-token=<font color="red">API TOKEN"</font>]
+- For K8s cluster deploy in Monitoring namespace:
+- Change deploy script as follows:
+*  change image name in k8s Deployment
+*  change  args: ["-url=https://api.anodot.com","-token=<font color="red">API TOKEN"</font>]
 - `kubectl apply -f anodot-remote.yaml`
 
 

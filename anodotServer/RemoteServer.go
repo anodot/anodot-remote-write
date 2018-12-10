@@ -70,7 +70,7 @@ func (rc *Receiver) InitHttp (s* anodotSubmitter.Anodot20Submitter,
 			 return
 		 }
 
-		 metrics := rc.Parser.ParseRequest(rc.protoToSamples(&req),stats)
+		 metrics := rc.Parser.ParsePrometheusRequest(rc.protoToSamples(&req),stats)
 		 workers.Do(&metrics,s)
 	 })
 

@@ -54,6 +54,7 @@ func main() {
 		flag.Usage()
 	}
 
+	log.Println("---Anodot Remote Write---")
 	log.Println("Starting Anodot Remote Port: ",*serverPort)
 	log.Println("Anodot Address:",*url,*port)
 	log.Println("Token:",*token)

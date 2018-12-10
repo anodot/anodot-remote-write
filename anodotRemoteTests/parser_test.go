@@ -57,7 +57,7 @@ func TestReceiver(t *testing.T) {
 	}
 
 	var stats remoteStats.MockRemoteStats
-	metrics := parser.ParseRequest(samples,&stats)
+	metrics := parser.ParsePrometheusRequest(samples,&stats)
 
 	if metrics == nil || len(metrics) == 0{
 		t.Fail()
@@ -121,7 +121,7 @@ func TestFilters(t *testing.T) {
 
 
 	var stats remoteStats.MockRemoteStats
-	metrics := parser.ParseRequest(samples,&stats)
+	metrics := parser.ParsePrometheusRequest(samples,&stats)
 
 	if len(metrics) > 3{
 		t.Fail()
@@ -179,10 +179,46 @@ func TestFilters2(t *testing.T) {
 
 
 	var stats remoteStats.MockRemoteStats
-	metrics := parser.ParseRequest(samples,&stats)
+	metrics := parser.ParsePrometheusRequest(samples,&stats)
 
 	if len(metrics) > 1{
 		t.Fail()
 	}
 
+}
+
+func TestTargetType(t *testing.T) {
+	samples := model.Samples{
+		{
+			Metric: model.Metric{
+				model.MetricNameLabel: "testmetric_total",
+				"test_label":          "test_label_value1",
+			},
+			Timestamp: model.Time(123456789123),
+			Value:     1.11,
+		},
+		{
+			Metric: model.Metric{
+				model.MetricNameLabel: "testmetric_rate",
+				"test_label":          "test_label_value2",
+			},
+			Timestamp: model.Time(123456789123),
+			Value:     2,
+		},
+	}
+
+	err,parser := anodotParser.NewAnodotParser(nil,nil)
+
+	if err != nil{
+		t.Fail()
+	}
+
+	var stats remoteStats.MockRemoteStats
+	metrics := parser.ParsePrometheusRequest(samples,&stats)
+	if metrics[0].Tags[anodotParser.TARGET_TYPE] != anodotParser.COUNTER{
+		t.Fail()
+	}
+	if metrics[1].Tags[anodotParser.TARGET_TYPE] != anodotParser.GAUGE{
+		t.Fail()
+	}
 }

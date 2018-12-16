@@ -199,7 +199,15 @@ func TestTargetType(t *testing.T) {
 		},
 		{
 			Metric: model.Metric{
-				model.MetricNameLabel: "testmetric_rate",
+				model.MetricNameLabel: "testmetric_count",
+				"test_label":          "test_label_value2",
+			},
+			Timestamp: model.Time(123456789123),
+			Value:     2,
+		},
+		{
+			Metric: model.Metric{
+				model.MetricNameLabel: "testmetric_sum",
 				"test_label":          "test_label_value2",
 			},
 			Timestamp: model.Time(123456789123),
@@ -218,7 +226,10 @@ func TestTargetType(t *testing.T) {
 	if metrics[0].Tags[anodotParser.TARGET_TYPE] != anodotParser.COUNTER{
 		t.Fail()
 	}
-	if metrics[1].Tags[anodotParser.TARGET_TYPE] != anodotParser.GAUGE{
+	if metrics[1].Tags[anodotParser.TARGET_TYPE] != anodotParser.COUNTER{
+		t.Fail()
+	}
+	if metrics[2].Tags[anodotParser.TARGET_TYPE] != anodotParser.COUNTER{
 		t.Fail()
 	}
 }

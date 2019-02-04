@@ -223,13 +223,13 @@ func TestTargetType(t *testing.T) {
 
 	var stats remoteStats.MockRemoteStats
 	metrics := parser.ParsePrometheusRequest(samples,&stats)
-	if metrics[0].Tags[anodotParser.TARGET_TYPE] != anodotParser.COUNTER{
+	if metrics[0].Properties[anodotParser.TARGET_TYPE] != anodotParser.COUNTER{
 		t.Fail()
 	}
-	if metrics[1].Tags[anodotParser.TARGET_TYPE] != anodotParser.COUNTER{
+	if metrics[1].Properties[anodotParser.TARGET_TYPE] != anodotParser.COUNTER{
 		t.Fail()
 	}
-	if metrics[2].Tags[anodotParser.TARGET_TYPE] != anodotParser.COUNTER{
+	if metrics[2].Properties[anodotParser.TARGET_TYPE] != anodotParser.COUNTER{
 		t.Fail()
 	}
 }

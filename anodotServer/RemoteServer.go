@@ -20,6 +20,7 @@ type Receiver struct {
 }
 
 const RECEIVER_ENDPOINT  = "/receive"
+const HEALTH_ENDPOINT  = "/health"
 
 func (rc *Receiver) protoToSamples(req *prompb.WriteRequest) model.Samples {
 	var samples model.Samples
@@ -73,6 +74,10 @@ func (rc *Receiver) InitHttp (s* anodotSubmitter.Anodot20Submitter,
 		 metrics := rc.Parser.ParsePrometheusRequest(rc.protoToSamples(&req),stats)
 		 workers.Do(&metrics,s)
 	 })
+
+	http.HandleFunc(HEALTH_ENDPOINT, func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
 
 	 log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d",rc.Port), nil))
 

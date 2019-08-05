@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 	"log"
+	"fmt"
 )
 
 const BUFFER_SIZE  = 1000
@@ -17,10 +18,11 @@ type Worker struct {
 	Current int64
 	Stats *remoteStats.RemoteStats
 	MetricsBuffer []anodotParser.AnodotMetric
+	Debug bool
 }
 
-func NewWorker(max int64,stats *remoteStats.RemoteStats)  Worker{
-	return  Worker{Max:max,MetricsBuffer: make([]anodotParser.AnodotMetric,0),Current:0,Stats:stats}
+func NewWorker(max int64,stats *remoteStats.RemoteStats,debug bool)  Worker{
+	return  Worker{Max:max,MetricsBuffer: make([]anodotParser.AnodotMetric,0),Current:0,Stats:stats,Debug:debug}
 }
 
 var mutex = &sync.Mutex{}
@@ -40,6 +42,13 @@ func (w *Worker) Do(metrics *[]anodotParser.AnodotMetric,
 		copy(newArray,w.MetricsBuffer)
 		w.MetricsBuffer = make([]anodotParser.AnodotMetric,0)
 
+		if(w.Debug == true){
+			for i := 0; i< len(newArray);i++{
+				fmt.Println((newArray)[i])
+			}
+			return
+		}
+
 		if w.Current >= w.Max {
 			log.Println("Moving to a Blocking Mode !!!")
 			s.SubmitMetrics(&newArray)
@@ -50,6 +59,9 @@ func (w *Worker) Do(metrics *[]anodotParser.AnodotMetric,
 				atomic.AddInt64(&w.Current, 1)
 				defer atomic.AddInt64(&w.Current,-1)
 				s.SubmitMetrics(&newArray)
+				if(s.MirrorUrl != ""){
+					s.MirrorMetrics(&newArray)
+				}
 				w.Stats.UpdateHist(remoteStats.REMOTE_REQUEST_TIME,int64(time.Since(ts).Seconds()))
 				return
 			}()

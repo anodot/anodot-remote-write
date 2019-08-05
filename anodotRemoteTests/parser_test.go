@@ -6,6 +6,7 @@ import (
 	"math"
 	"github.com/anodot/anodot-common/anodotParser"
 	"github.com/anodot/anodot-common/remoteStats"
+	"fmt"
 )
 
 func TestReceiver(t *testing.T) {
@@ -187,19 +188,19 @@ func TestFilters2(t *testing.T) {
 
 }
 
-func TestTargetType(t *testing.T) {
+func TestFilters4(t *testing.T) {
 	samples := model.Samples{
 		{
 			Metric: model.Metric{
-				model.MetricNameLabel: "testmetric_total",
-				"test_label":          "test_label_value1",
+				model.MetricNameLabel: "testmetric",
+				"tst_label":          "test_label_value1",
 			},
 			Timestamp: model.Time(123456789123),
 			Value:     1.11,
 		},
 		{
 			Metric: model.Metric{
-				model.MetricNameLabel: "testmetric_count",
+				model.MetricNameLabel: "testmetric",
 				"test_label":          "test_label_value2",
 			},
 			Timestamp: model.Time(123456789123),
@@ -207,15 +208,29 @@ func TestTargetType(t *testing.T) {
 		},
 		{
 			Metric: model.Metric{
-				model.MetricNameLabel: "testmetric_sum",
-				"test_label":          "test_label_value2",
+				model.MetricNameLabel: "test3",
 			},
 			Timestamp: model.Time(123456789123),
-			Value:     2,
+			Value:     0,
+		},
+		{
+			Metric: model.Metric{
+				model.MetricNameLabel: "pos_inf_value",
+			},
+			Timestamp: model.Time(123456789123),
+			Value:     model.SampleValue(math.Inf(1)),
+		},
+		{
+			Metric: model.Metric{
+				model.MetricNameLabel: "neg_inf_value",
+			},
+			Timestamp: model.Time(123456789123),
+			Value:     model.SampleValue(math.Inf(-1)),
 		},
 	}
 
-	err,parser := anodotParser.NewAnodotParser(nil,nil)
+	filterIn :=  `{"test_label":"test_label_value2","tst_label":"test_label_value1"}`
+	err,parser := anodotParser.NewAnodotParser(&filterIn,nil)
 
 	if err != nil{
 		t.Fail()
@@ -223,13 +238,10 @@ func TestTargetType(t *testing.T) {
 
 	var stats remoteStats.MockRemoteStats
 	metrics := parser.ParsePrometheusRequest(samples,&stats)
-	if metrics[0].Properties[anodotParser.TARGET_TYPE] != anodotParser.COUNTER{
+
+	fmt.Println(metrics)
+	if len(metrics) != 2{
 		t.Fail()
 	}
-	if metrics[1].Properties[anodotParser.TARGET_TYPE] != anodotParser.COUNTER{
-		t.Fail()
-	}
-	if metrics[2].Properties[anodotParser.TARGET_TYPE] != anodotParser.COUNTER{
-		t.Fail()
-	}
+
 }

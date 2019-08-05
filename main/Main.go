@@ -41,11 +41,15 @@ func main() {
 
 	var url = flag.String("url", DEFAULT_ANODOT_URL, "Anodot Endpoint")
 	var port = flag.String("port", DEFAULT_ANODOT_PORT, "Anodot Port")
-	var token = flag.String("token", DEFAULT_TOKEN, "Account AP Token")
+	var token = flag.String("token", DEFAULT_TOKEN, "Account API Token")
 	var serverPort = flag.Int("sever", DEFAULT_PORT, "Prometheus Remote Port")
 	var workers = flag.Int64("workers", DEFAULT_NUMBER_OF_WORKERS, "Remote Write Workers -> Anodot")
-	var filterOut = flag.String("filterOut", "", "Set an expression to remove metrics from stream")
-	var filterIn = flag.String("filterIn", "", "Set an expression to add to stream")
+	var filterOut = flag.String("filterOut","","Set an expression to remove metrics from stream")
+	var filterIn = flag.String("filterIn","","Set an expression to add to stream")
+	var murl = flag.String("murl", "", "Anodot Endpoint - Mirror")
+	var mport = flag.String("mport", "", "Anodot Port - Mirror")
+	var mtoken = flag.String("mtoken", "", "Account AP Token - Mirror")
+	var debug = flag.Bool("debug", false, "Print requests to stdout only")
 
 	flag.Parse()
 
@@ -55,10 +59,14 @@ func main() {
 	}
 
 	log.Println("---Anodot Remote Write---")
-	log.Println("Starting Anodot Remote Port: ", *serverPort)
-	log.Println("Anodot Address:", *url, *port)
-	log.Println("Token:", *token)
-	log.Println("Number of Workers:", *workers)
+	log.Println("Starting Anodot Remote Port: ",*serverPort)
+	log.Println("Anodot Address:",*url,*port)
+	log.Println("Token:",*token)
+	if(*murl != "") {
+		log.Println("Anodot Address - Mirror:", *murl, *mport)
+		log.Println("Token - Mirror:", *mtoken)
+		log.Println("Number of Workers:", *workers)
+	}
 
 	//Prepare filters
 	err, parser := anodotParser.NewAnodotParser(filterIn, filterOut)
@@ -78,11 +86,11 @@ func main() {
 		}
 	}()
 
-	//Submitter sends parsed metrics to Anodot
-	submitter := anodotSubmitter.NewAnodot20Submitter(*url, *port, *token, &Stats)
+	submitter := anodotSubmitter.NewAnodot20Submitter(*url,*port,*token,&Stats,*murl,*mport,*mtoken)
 
 	//Workers manager -> number of threads that communicate with Anodot
-	var w = anodotServer.NewWorker(*workers, &Stats)
+	var w =anodotServer.NewWorker(*workers,&Stats,*debug)
+
 
 	//Actual server listening on port - serverPort
 	var s = anodotServer.Receiver{Port: *serverPort, Parser: &parser}

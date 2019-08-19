@@ -20,7 +20,7 @@ For K8s cluster deploy in Monitoring namespace:
 
 ### Prerequisites
 
-Go 1.x. 
+Go >= 1.11
 
 Docker 1.18ce.
 

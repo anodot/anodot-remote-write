@@ -1,6 +1,6 @@
 FROM alpine:3.7
 
 RUN apk add --no-cache ca-certificates
-ADD server /go/bin/server
+ADD anodot-remote-write /go/bin/anodot-remote-write
 EXPOSE 1234
-ENTRYPOINT ["/go/bin/server"]
+ENTRYPOINT ["/go/bin/anodot-remote-write"]

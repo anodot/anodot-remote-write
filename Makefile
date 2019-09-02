@@ -1,14 +1,14 @@
 GO := go
-GOARCH = amd64
-GOOS = linux
+GOARCH := amd64
+GOOS := linux
 
 BUILD_FLAGS = GO111MODULE=on CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) GOFLAGS=-mod=vendor
 APPLICATION_NAME := anodot-prometheus-remote-write
-DOCKER_IMAGE_NAME:= anodot/prometheus-remote-write
+DOCKER_IMAGE_NAME := anodot/prometheus-remote-write
 
-VERSION:=$(shell grep 'VERSION' pkg/version/version.go | awk '{ print $$4 }' | tr -d '"')
-PREVIOUS_VERSION:=$(git show HEAD:pkg/version/version.go | grep 'VERSION' | awk '{ print $$4 }' | tr -d '"' )
-GIT_COMMIT:=$(shell git describe --dirty --always)
+VERSION := $(shell grep 'VERSION' pkg/version/version.go | awk '{ print $$4 }' | tr -d '"')
+PREVIOUS_VERSION := $(git show HEAD:pkg/version/version.go | grep 'VERSION' | awk '{ print $$4 }' | tr -d '"' )
+GIT_COMMIT := $(shell git describe --dirty --always)
 
 all: clean format vet build-charts test build build-container test-container
 

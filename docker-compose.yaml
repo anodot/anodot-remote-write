@@ -7,4 +7,13 @@ services:
     restart: unless-stopped
     ports:
       - "1234:1234"
-    command: ["-url=https://api.anodot.com","-token=<CHANGE_ME>","-workers=20"]
+    command: ["-url=https://api.anodot.com","-token=<CHANGE_ME>","-workers=20","-debug"]
+    # used to join default docker bridge network
+    #network_mode: bridge
+
+# uncomment to join existing user-defined network, so containers can communicate with each other by container name
+# see details https://docs.docker.com/compose/networking/
+#networks:
+#  default:
+#    external:
+#      name: <change_with_existing_network>

@@ -7,7 +7,7 @@ services:
     restart: unless-stopped
     ports:
       - "1234:1234"
-    command: ["-url=https://api.anodot.com","-token=<CHANGE_ME>","-workers=20","-debug"]
+    command: ["-url=https://api.anodot.com","-token=<CHANGE_ME>","-workers=20"]
     # used to join default docker bridge network
     #network_mode: bridge
 

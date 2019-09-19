@@ -1,0 +1,10 @@
+version: '2'
+
+services:
+  remote-write:
+    image: anodot/prometheus-remote-write:1.2
+    container_name: anodot-prometheus-remote-write
+    restart: on-failure
+    ports:
+      - "1234:1234"
+    command: ["-url=https://api.anodot.com","-token=<CHANGE_ME>","-workers=20"]

@@ -1,6 +1,6 @@
 FROM alpine:3.7
 
 RUN apk add --no-cache ca-certificates
-ADD anodot-remote-write /go/bin/anodot-remote-write
+ADD anodot-prometheus-remote-write /go/bin/anodot-prometheus-remote-write
 EXPOSE 1234
-ENTRYPOINT ["/go/bin/anodot-remote-write"]
+ENTRYPOINT ["/go/bin/anodot-prometheus-remote-write"]

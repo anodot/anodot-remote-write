@@ -50,7 +50,7 @@ This command will install application in `monitoring` namespace.
 cd deployment/docker-compose
 ```
 Open `docker-compose.yaml` and edit if needed, specifying required configuration parameters.
-Run next command to start application.
+Run next command to start application:
 ```shell script
 docker-compose up -d 
 ``` 

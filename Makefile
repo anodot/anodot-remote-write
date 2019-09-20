@@ -35,6 +35,7 @@ build-container:
 	@echo ">> created docker image $(DOCKER_IMAGE_NAME):$(VERSION)"
 
 build-charts:
+	helm init --client-only
 	helm lint deployment/helm/*
 	helm package deployment/helm/*
 

@@ -2,6 +2,17 @@
 
 `anodot-prometheus-remote-write` is a service which receives [Prometheus](https://github.com/prometheus) metrics through [`remote_write`](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write), converts metrics and sends them into [Anodot](https://www.anodot.com).
 
+* [Building application](#building-application)
+  * [Prerequisites](#prerequisites)
+  * [Running tests](#running-tests)
+* [Deploying application application](#deploying-application-application)
+  * [Prerequisites](#prerequisites-1)
+     * [Using helm](#using-helm)
+     * [Using docker-compose](#using-docker-compose)
+* [Configuring Prometheus server](#configuring-prometheus-server)
+  * [Authors](#authors)
+  * [License and Disclaimer](#license-and-disclaimer)
+
 # Building application
 ## Prerequisites
  - Go >= 1.11
@@ -33,8 +44,16 @@ helm upgrade -i anodot-remote-write -n monitoring .
 ```
 This command will install application in `monitoring` namespace.
 
-### Using kubernetes config files
-TODO
+### Using docker-compose
+
+```shell script
+cd deployment/docker-compose
+```
+Open `docker-compose.yaml` and edit if needed, specifying required configuration parameters.
+Run next command to start application.
+```shell script
+docker-compose up -d 
+``` 
 
 # Configuring Prometheus server
 In Prometheus configuration file (default `prometheus.yml`), add `remote_write` [configuration](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write)

@@ -12,15 +12,17 @@ GIT_COMMIT := $(shell git describe --dirty --always)
 
 all: clean format vet build-charts test build build-container test-container
 publish-container: clean format vet build-charts test build build-container test-container push-container
-test-all: clean vet build-charts test build build-container test-container
+run-checks: check-formatting vet build-charts test build build-container test-container
 
 clean:
 	@rm -rf $(APPLICATION_NAME)
 	docker rmi -f `docker images $(DOCKER_IMAGE_NAME):$(VERSION) -a -q` || true
 	rm -rf anodot-prometheus-remote-write-$(VERSION).tgz
 
+check-formatting:
+	./utils/check_if_formatted.sh
+
 format:
-	@echo ">> formatting code"
 	@$(GO) fmt ./...
 
 vet:
@@ -54,8 +56,8 @@ push-container:
 	docker push $(DOCKER_IMAGE_NAME):$(VERSION)
 
 version-set:
-	sed -i '' "s/tag: "$(PREVIOUS_VERSION)"/tag: "$(VERSION)"/g" deployment/helm/anodot-prometheus-remote-write/values.yaml && \
-	sed -i '' "s/appVersion: "$(PREVIOUS_VERSION)"/appVersion: "$(VERSION)"/g" deployment/helm/anodot-prometheus-remote-write/Chart.yaml && \
-	sed -i '' "s/version: "$(PREVIOUS_VERSION)"/version: "$(VERSION)"/g" deployment/helm/anodot-prometheus-remote-write/Chart.yaml && \
-	sed -i '' "s#$(DOCKER_IMAGE_NAME):$(PREVIOUS_VERSION)#$(DOCKER_IMAGE_NAME):$(VERSION)#g" deployment/docker-compose/docker-compose.yaml && \
+	@sed -i '' 's/tag: "$(PREVIOUS_VERSION)"/tag: "$(VERSION)"/g' deployment/helm/anodot-prometheus-remote-write/values.yaml && \
+	sed -i '' 's/appVersion: "$(PREVIOUS_VERSION)"/appVersion: "$(VERSION)"/g' deployment/helm/anodot-prometheus-remote-write/Chart.yaml && \
+	sed -i '' 's/version: "$(PREVIOUS_VERSION)"/version: "$(VERSION)"/g' deployment/helm/anodot-prometheus-remote-write/Chart.yaml && \
+	sed -i '' 's#$(DOCKER_IMAGE_NAME):$(PREVIOUS_VERSION)#$(DOCKER_IMAGE_NAME):$(VERSION)#g' deployment/docker-compose/docker-compose.yaml && \
 	echo "Version $(VERSION) set in code, deployment, chart"

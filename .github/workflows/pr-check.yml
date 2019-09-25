@@ -25,4 +25,4 @@ jobs:
       - uses: actions/checkout@master
         with:
           fetch-depth: 1
-      - uses: gaurav-nelson/github-action-markdown-link-check@v0.2.0
+      - uses: gaurav-nelson/github-action-markdown-link-check@v3.7.3

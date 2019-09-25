@@ -62,8 +62,24 @@ In Prometheus configuration file (default `prometheus.yml`), add `remote_write` 
       scrape_interval: 60s
       evaluation_interval: 60s
     remote_write:
-      - url: "http://anodot-prometheus.monitoring:1234/receive"
+      - url: "http://anodot-prometheus-remote-write:1234/receive"
 ```
+
+[Prometheus operator](https://github.com/coreos/prometheus-operator) configuration example (some fields omitted for clarity):
+```yaml
+apiVersion: monitoring.coreos.com/v1
+kind: Prometheus
+metadata:
+  labels:
+    app: prometheus-operator-prometheus
+  name: prometheus
+spec:
+  remoteWrite:
+  - url: "http://anodot-prometheus-remote-write:1234/receive"
+  version: v2.10.0
+```
+
+More Prometheus configuration options available on [this](https://github.com/coreos/prometheus-operator/blob/master/Documentation/api.md#remotewritespec) page.
 
 ## Authors
 

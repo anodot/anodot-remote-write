@@ -16,8 +16,5 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v1
 
-      - name: Markdown links check
-        uses: gaurav-nelson/github-action-markdown-link-check@v0.2.0
-
       - name: Test PR changes
         run: make run-checks

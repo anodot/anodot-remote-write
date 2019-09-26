@@ -1,12 +1,12 @@
 package anodotRemoteTests
 
 import (
-	"testing"
-	"github.com/prometheus/common/model"
-	"math"
+	"fmt"
 	"github.com/anodot/anodot-common/anodotParser"
 	"github.com/anodot/anodot-common/remoteStats"
-	"fmt"
+	"github.com/prometheus/common/model"
+	"math"
+	"testing"
 )
 
 func TestReceiver(t *testing.T) {
@@ -51,22 +51,22 @@ func TestReceiver(t *testing.T) {
 		},
 	}
 
-	err,parser := anodotParser.NewAnodotParser(nil,nil)
+	err, parser := anodotParser.NewAnodotParser(nil, nil)
 
-	if err != nil{
+	if err != nil {
 		t.Fail()
 	}
 
 	var stats remoteStats.MockRemoteStats
-	metrics := parser.ParsePrometheusRequest(samples,&stats)
+	metrics := parser.ParsePrometheusRequest(samples, &stats)
 
-	if metrics == nil || len(metrics) == 0{
+	if metrics == nil || len(metrics) == 0 {
 		t.Fail()
 	}
 
-	for _,m := range metrics{
-		_,ok := m.Properties["what"]
-		if !ok{
+	for _, m := range metrics {
+		_, ok := m.Properties["what"]
+		if !ok {
 			t.Fail()
 		}
 	}
@@ -113,18 +113,17 @@ func TestFilters(t *testing.T) {
 		},
 	}
 
-	filterOut :=  `{"test_label":"test_label_value2"}`
-	err,parser := anodotParser.NewAnodotParser(nil,&filterOut)
+	filterOut := `{"test_label":"test_label_value2"}`
+	err, parser := anodotParser.NewAnodotParser(nil, &filterOut)
 
-	if err != nil{
+	if err != nil {
 		t.Fail()
 	}
 
-
 	var stats remoteStats.MockRemoteStats
-	metrics := parser.ParsePrometheusRequest(samples,&stats)
+	metrics := parser.ParsePrometheusRequest(samples, &stats)
 
-	if len(metrics) > 3{
+	if len(metrics) > 3 {
 		t.Fail()
 	}
 
@@ -171,18 +170,17 @@ func TestFilters2(t *testing.T) {
 		},
 	}
 
-	filterIn :=  `{"test_label":"test_label_value2"}`
-	err,parser := anodotParser.NewAnodotParser(&filterIn,nil)
+	filterIn := `{"test_label":"test_label_value2"}`
+	err, parser := anodotParser.NewAnodotParser(&filterIn, nil)
 
-	if err != nil{
+	if err != nil {
 		t.Fail()
 	}
 
-
 	var stats remoteStats.MockRemoteStats
-	metrics := parser.ParsePrometheusRequest(samples,&stats)
+	metrics := parser.ParsePrometheusRequest(samples, &stats)
 
-	if len(metrics) > 1{
+	if len(metrics) > 1 {
 		t.Fail()
 	}
 
@@ -193,7 +191,7 @@ func TestFilters4(t *testing.T) {
 		{
 			Metric: model.Metric{
 				model.MetricNameLabel: "testmetric",
-				"tst_label":          "test_label_value1",
+				"tst_label":           "test_label_value1",
 			},
 			Timestamp: model.Time(123456789123),
 			Value:     1.11,
@@ -229,18 +227,18 @@ func TestFilters4(t *testing.T) {
 		},
 	}
 
-	filterIn :=  `{"test_label":"test_label_value2","tst_label":"test_label_value1"}`
-	err,parser := anodotParser.NewAnodotParser(&filterIn,nil)
+	filterIn := `{"test_label":"test_label_value2","tst_label":"test_label_value1"}`
+	err, parser := anodotParser.NewAnodotParser(&filterIn, nil)
 
-	if err != nil{
+	if err != nil {
 		t.Fail()
 	}
 
 	var stats remoteStats.MockRemoteStats
-	metrics := parser.ParsePrometheusRequest(samples,&stats)
+	metrics := parser.ParsePrometheusRequest(samples, &stats)
 
 	fmt.Println(metrics)
-	if len(metrics) != 2{
+	if len(metrics) != 2 {
 		t.Fail()
 	}
 

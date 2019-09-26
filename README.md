@@ -2,6 +2,17 @@
 
 `anodot-prometheus-remote-write` is a service which receives [Prometheus](https://github.com/prometheus) metrics through [`remote_write`](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write), converts metrics and sends them into [Anodot](https://www.anodot.com).
 
+* [Building application](#building-application)
+  * [Prerequisites](#prerequisites)
+  * [Running tests](#running-tests)
+* [Deploying application application](#deploying-application-application)
+  * [Prerequisites](#prerequisites-1)
+     * [Using helm](#using-helm)
+     * [Using docker-compose](#using-docker-compose)
+* [Configuring Prometheus server](#configuring-prometheus-server)
+  * [Authors](#authors)
+  * [License and Disclaimer](#license-and-disclaimer)
+
 # Building application
 ## Prerequisites
  - Go >= 1.11
@@ -33,8 +44,16 @@ helm upgrade -i anodot-remote-write -n monitoring .
 ```
 This command will install application in `monitoring` namespace.
 
-### Using kubernetes config files
-TODO
+### Using docker-compose
+
+```shell script
+cd deployment/docker-compose
+```
+Open `docker-compose.yaml` and edit if needed, specifying required configuration parameters.
+Run next command to start application:
+```shell script
+docker-compose up -d 
+``` 
 
 # Configuring Prometheus server
 In Prometheus configuration file (default `prometheus.yml`), add `remote_write` [configuration](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write)
@@ -43,8 +62,24 @@ In Prometheus configuration file (default `prometheus.yml`), add `remote_write` 
       scrape_interval: 60s
       evaluation_interval: 60s
     remote_write:
-      - url: "http://anodot-prometheus.monitoring:1234/receive"
+      - url: "http://anodot-prometheus-remote-write:1234/receive"
 ```
+
+[Prometheus operator](https://github.com/coreos/prometheus-operator) configuration example (some fields omitted for clarity):
+```yaml
+apiVersion: monitoring.coreos.com/v1
+kind: Prometheus
+metadata:
+  labels:
+    app: prometheus-operator-prometheus
+  name: prometheus
+spec:
+  remoteWrite:
+  - url: "http://anodot-prometheus-remote-write:1234/receive"
+  version: v2.10.0
+```
+
+More Prometheus configuration options available on [this](https://github.com/coreos/prometheus-operator/blob/master/Documentation/api.md#remotewritespec) page.
 
 ## Authors
 

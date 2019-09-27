@@ -6,7 +6,8 @@ import (
 	"github.com/anodot/anodot-common/anodotParser"
 	"github.com/anodot/anodot-common/anodotSubmitter"
 	"github.com/anodot/anodot-common/remoteStats"
-	"github.com/anodot/anodot-remote-write/anodotServer"
+	"github.com/anodot/anodot-remote-write/pkg/prometheus"
+	"github.com/anodot/anodot-remote-write/pkg/remote"
 	"github.com/anodot/anodot-remote-write/pkg/version"
 	"github.com/rcrowley/go-metrics"
 	"log"
@@ -57,6 +58,7 @@ func main() {
 	if *token == "" {
 		log.Println("No Token provided")
 		flag.Usage()
+		os.Exit(1)
 	}
 
 	log.Println("---Anodot Remote Write---")
@@ -95,10 +97,10 @@ func main() {
 	submitter := anodotSubmitter.NewAnodot20Submitter(*url, *port, *token, &Stats, *murl, *mport, *mtoken)
 
 	//Workers manager -> number of threads that communicate with Anodot
-	var w = anodotServer.NewWorker(*workers, &Stats, *debug)
+	var w = remote.NewWorker(*workers, &Stats, *debug)
 
 	//Actual server listening on port - serverPort
-	var s = anodotServer.Receiver{Port: *serverPort, Parser: &parser}
+	var s = prometheus.Receiver{Port: *serverPort, Parser: &parser}
 
 	//Initializer -> listener, endpoints etc
 	s.InitHttp(&submitter, &Stats, &w)

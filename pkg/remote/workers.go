@@ -1,4 +1,4 @@
-package anodotServer
+package remote
 
 import (
 	"fmt"

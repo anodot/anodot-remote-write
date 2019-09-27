@@ -1,10 +1,11 @@
-package anodotServer
+package prometheus
 
 import (
 	"fmt"
 	"github.com/anodot/anodot-common/anodotParser"
 	"github.com/anodot/anodot-common/anodotSubmitter"
 	"github.com/anodot/anodot-common/remoteStats"
+	"github.com/anodot/anodot-remote-write/pkg/remote"
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/snappy"
 	"github.com/prometheus/common/model"
@@ -43,7 +44,7 @@ func (rc *Receiver) protoToSamples(req *prompb.WriteRequest) model.Samples {
 
 func (rc *Receiver) InitHttp(s *anodotSubmitter.Anodot20Submitter,
 	stats *remoteStats.RemoteStats,
-	workers *Worker) {
+	workers *remote.Worker) {
 
 	http.HandleFunc(RECEIVER_ENDPOINT, func(w http.ResponseWriter, r *http.Request) {
 

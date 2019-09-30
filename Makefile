@@ -30,7 +30,7 @@ format:
 
 vet:
 	@curl -sfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh| sh -s -- -b $$(go env GOPATH)/bin v$(GOLINT_VERSION)
-	$$(go env GOPATH)/bin/golangci-lint run
+	$(BUILD_FLAGS) $$(go env GOPATH)/bin/golangci-lint run
 
 build:
 	@echo ">> building binaries with version $(VERSION)"

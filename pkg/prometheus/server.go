@@ -42,9 +42,7 @@ func (rc *Receiver) protoToSamples(req *prompb.WriteRequest) model.Samples {
 	return samples
 }
 
-func (rc *Receiver) InitHttp(s *anodotSubmitter.Anodot20Submitter,
-	stats *remoteStats.RemoteStats,
-	workers *remote.Worker) {
+func (rc *Receiver) InitHttp(s *anodotSubmitter.Anodot20Submitter, stats *remoteStats.RemoteStats, workers *remote.Worker) {
 
 	http.HandleFunc(RECEIVER_ENDPOINT, func(w http.ResponseWriter, r *http.Request) {
 

@@ -89,7 +89,7 @@ func main() {
 
 	//Print Memory Statistics
 	go func() {
-		for _ = range time.Tick(5 * time.Minute) {
+		for range time.Tick(5 * time.Minute) {
 			PrintMemUsage()
 		}
 	}()

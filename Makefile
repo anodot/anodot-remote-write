@@ -2,6 +2,8 @@ GO := go
 GOARCH := amd64
 GOOS := linux
 
+GOLINT_VERSION:=1.19.1
+
 BUILD_FLAGS = GO111MODULE=on CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) GOFLAGS=-mod=vendor
 APPLICATION_NAME := anodot-prometheus-remote-write
 DOCKER_IMAGE_NAME := anodot/prometheus-remote-write
@@ -12,7 +14,8 @@ GIT_COMMIT := $(shell git describe --dirty --always)
 
 all: clean format vet build-charts test build build-container test-container
 publish-container: clean format vet build-charts test build build-container test-container push-container
-run-checks: check-formatting vet build-charts test build build-container test-container
+lint: check-formatting vet build-charts
+test-all: test build build-container test-container
 
 clean:
 	@rm -rf $(APPLICATION_NAME)
@@ -26,7 +29,8 @@ format:
 	@$(GO) fmt ./...
 
 vet:
-	@echo ">> not implemented yet..."
+	@curl -sfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh| sh -s -- -b $$(go env GOPATH)/bin v$(GOLINT_VERSION)
+	$$(go env GOPATH)/bin/golangci-lint run
 
 build:
 	@echo ">> building binaries with version $(VERSION)"
@@ -46,10 +50,11 @@ test:
 
 test-container:
 	@docker rm -f $(APPLICATION_NAME) || true
-	@docker run -d -P --name=$(APPLICATION_NAME) $(DOCKER_IMAGE_NAME):$(VERSION)
+	@docker run -d -P --name=$(APPLICATION_NAME) $(DOCKER_IMAGE_NAME):$(VERSION) --token abc --url http://localhost:9090
 	docker ps
-	curl --connect-timeout 5 --max-time 10 --retry 5 --retry-delay 0 --retry-max-time 40 -I http://localhost:$$(docker port $(APPLICATION_NAME) | grep -o '[0-9]*$$' )/health
+	set -x curl --connect-timeout 5 --max-time 10 --retry 5 --retry-delay 0 --retry-max-time 40 -I http://localhost:$$(docker port $(APPLICATION_NAME) | grep -o '[0-9]*$$' )/health
 
+	docker logs $(APPLICATION_NAME)
 	@docker rm -f $(APPLICATION_NAME)
 
 push-container:

@@ -60,7 +60,7 @@ func TestReceiver(t *testing.T) {
 	var stats remoteStats.MockRemoteStats
 	metrics := parser.ParsePrometheusRequest(samples, &stats)
 
-	if metrics == nil || len(metrics) == 0 {
+	if len(metrics) == 0 {
 		t.Fail()
 	}
 

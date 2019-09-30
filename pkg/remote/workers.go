@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-const BUFFER_SIZE = 1000
+const bufferSize = 1000
 
 type Worker struct {
 	Max           int64
@@ -27,13 +27,12 @@ func NewWorker(max int64, stats *remoteStats.RemoteStats, debug bool) Worker {
 
 var mutex = &sync.Mutex{}
 
-func (w *Worker) Do(metrics *[]anodotParser.AnodotMetric,
-	s *anodotSubmitter.Anodot20Submitter) {
+func (w *Worker) Do(metrics *[]anodotParser.AnodotMetric, s *anodotSubmitter.Anodot20Submitter) {
 
 	mutex.Lock()
 	defer mutex.Unlock()
 
-	if len(w.MetricsBuffer) < BUFFER_SIZE {
+	if len(w.MetricsBuffer) < bufferSize {
 		w.MetricsBuffer = append(w.MetricsBuffer, *metrics...)
 		return
 	}
@@ -42,7 +41,7 @@ func (w *Worker) Do(metrics *[]anodotParser.AnodotMetric,
 	copy(newArray, w.MetricsBuffer)
 	w.MetricsBuffer = make([]anodotParser.AnodotMetric, 0)
 
-	if w.Debug == true {
+	if w.Debug {
 		for i := 0; i < len(newArray); i++ {
 			fmt.Println((newArray)[i])
 		}
@@ -63,7 +62,6 @@ func (w *Worker) Do(metrics *[]anodotParser.AnodotMetric,
 				s.MirrorMetrics(&newArray)
 			}
 			w.Stats.UpdateHist(remoteStats.REMOTE_REQUEST_TIME, int64(time.Since(ts).Seconds()))
-			return
 		}()
 	}
 }

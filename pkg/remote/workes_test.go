@@ -65,23 +65,6 @@ func TestMetricsShouldBeBuffered(t *testing.T) {
 	}
 }
 
-func BenchmarkNewWorker(t *testing.B) {
-	t.ReportAllocs()
-
-	mockSubmitter := &MockSubmitter{f: func(metrics []anodotParser.AnodotMetric) {
-		//t.Errorf("No metrics should be sent in debug mode")
-	}}
-
-	stats := remoteStats.NewStats()
-	worker := NewWorker(0, &stats, false)
-
-	for i := 0; i < t.N; i++ {
-		worker.Do(randomMetrics(1000), mockSubmitter)
-
-	}
-
-}
-
 func TestNoMetricsSendInDebugMode(t *testing.T) {
 	log.SetOutput(ioutil.Discard)
 

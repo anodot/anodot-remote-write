@@ -66,3 +66,7 @@ version-set:
 	sed -i '' 's/version: "$(PREVIOUS_VERSION)"/version: "$(VERSION)"/g' deployment/helm/anodot-prometheus-remote-write/Chart.yaml && \
 	sed -i '' 's#$(DOCKER_IMAGE_NAME):$(PREVIOUS_VERSION)#$(DOCKER_IMAGE_NAME):$(VERSION)#g' deployment/docker-compose/docker-compose.yaml && \
 	echo "Version $(VERSION) set in code, deployment, chart"
+
+vendor-update:
+	GO111MODULE=on go mod tidy
+	GO111MODULE=on go mod vendor

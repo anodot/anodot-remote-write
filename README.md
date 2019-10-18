@@ -1,3 +1,6 @@
+[![Go Report Card](https://goreportcard.com/badge/github.com/anodot/anodot-remote-write)](https://goreportcard.com/report/github.com/anodot/anodot-remote-write)
+![Docker Pulls](https://img.shields.io/docker/pulls/anodot/prometheus-remote-write)
+
 # Anodot Prometheous Remote Write
 
 `anodot-prometheus-remote-write` is a service which receives [Prometheus](https://github.com/prometheus) metrics through [`remote_write`](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write), converts metrics and sends them into [Anodot](https://www.anodot.com).

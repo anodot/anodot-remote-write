@@ -1,10 +1,12 @@
 GO := go
+GOFLAGS=-mod=vendor
+
 GOARCH := amd64
 GOOS := linux
 
 GOLINT_VERSION:=1.19.1
 
-BUILD_FLAGS = GO111MODULE=on CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) GOFLAGS=-mod=vendor
+BUILD_FLAGS = GO111MODULE=on CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) GOFLAGS=$(GOFLAGS)
 APPLICATION_NAME := anodot-prometheus-remote-write
 DOCKER_IMAGE_NAME := anodot/prometheus-remote-write
 
@@ -42,11 +44,14 @@ build-container:
 
 build-charts:
 	helm init --client-only
+	helm version --client
+	@helm plugin install https://github.com/instrumenta/helm-kubeval || echo "Skipping error..."
+	./utils/kubeval.sh
 	helm lint deployment/helm/*
 	helm package deployment/helm/*
 
 test:
-	GO111MODULE=on go test -v -race ./...
+	GOFLAGS=$(GOFLAGS) $(GO) test -v -race ./...
 
 test-container:
 	@docker rm -f $(APPLICATION_NAME) || true
@@ -63,6 +68,5 @@ push-container:
 version-set:
 	@sed -i '' 's/tag: "$(PREVIOUS_VERSION)"/tag: "$(VERSION)"/g' deployment/helm/anodot-prometheus-remote-write/values.yaml && \
 	sed -i '' 's/appVersion: "$(PREVIOUS_VERSION)"/appVersion: "$(VERSION)"/g' deployment/helm/anodot-prometheus-remote-write/Chart.yaml && \
-	sed -i '' 's/version: "$(PREVIOUS_VERSION)"/version: "$(VERSION)"/g' deployment/helm/anodot-prometheus-remote-write/Chart.yaml && \
 	sed -i '' 's#$(DOCKER_IMAGE_NAME):$(PREVIOUS_VERSION)#$(DOCKER_IMAGE_NAME):$(VERSION)#g' deployment/docker-compose/docker-compose.yaml && \
 	echo "Version $(VERSION) set in code, deployment, chart"

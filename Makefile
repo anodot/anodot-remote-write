@@ -45,7 +45,7 @@ build-container:
 build-charts:
 	helm init --client-only
 	helm version --client
-	@helm plugin install https://github.com/instrumenta/helm-kubeval || echo "Skipping error..."
+	@helm plugin install https://github.com/instrumenta/helm-kubeval --version="0.13.0" || echo "Skipping error..."
 	./utils/kubeval.sh
 	helm lint deployment/helm/*
 	helm package deployment/helm/*

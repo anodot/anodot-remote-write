@@ -1,10 +1,12 @@
 GO := go
+GOFLAGS=-mod=vendor
+
 GOARCH := amd64
 GOOS := linux
 
 GOLINT_VERSION:=1.19.1
 
-BUILD_FLAGS = GO111MODULE=on CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) GOFLAGS=-mod=vendor
+BUILD_FLAGS = GO111MODULE=on CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) GOFLAGS=$(GOFLAGS)
 APPLICATION_NAME := anodot-prometheus-remote-write
 DOCKER_IMAGE_NAME := anodot/prometheus-remote-write
 
@@ -42,11 +44,13 @@ build-container:
 
 build-charts:
 	helm init --client-only
+	@helm plugin install https://github.com/instrumenta/helm-kubeval --version=0.13.0 || echo "Skipping error..."
+	./utils/kubeval.sh
 	helm lint deployment/helm/*
 	helm package deployment/helm/*
 
 test:
-	GO111MODULE=on go test -v -race ./...
+	GOFLAGS=$(GOFLAGS) $(GO) test -v -race ./...
 
 test-container:
 	@docker rm -f $(APPLICATION_NAME) || true

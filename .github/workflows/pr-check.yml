@@ -1,4 +1,9 @@
-on: [pull_request]
+on:
+  pull_request:
+    branches:
+    - master
+    - release/*
+    - hotfix/* 
 name: pr-check
 jobs:
   test:
@@ -15,6 +20,9 @@ jobs:
 
       - name: Checkout code
         uses: actions/checkout@v1
+        
+      - name: Check markdown
+        uses: gaurav-nelson/github-action-markdown-link-check@0.4.0
 
       - name: Lint
         run: make lint

@@ -46,7 +46,7 @@ build-charts:
 	helm package deployment/helm/*
 
 test:
-	GO111MODULE=on go test -v -race ./...
+	GO111MODULE=on go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
 
 test-container:
 	@docker rm -f $(APPLICATION_NAME) || true

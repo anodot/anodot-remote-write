@@ -1,5 +1,5 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/anodot/anodot-remote-write)](https://goreportcard.com/report/github.com/anodot/anodot-remote-write)
-[![Docker Pulls](https://img.shields.io/docker/pulls/anodot/prometheus-remote-write)][https://hub.docker.com/r/anodot/prometheus-remote-write]
+[![Docker Pulls](https://img.shields.io/docker/pulls/anodot/prometheus-remote-write)][hub]
 
 # Anodot Prometheous Remote Write
 
@@ -91,3 +91,5 @@ More Prometheus configuration options available on [this](https://github.com/cor
 ## License and Disclaimer
 
 This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details
+
+[hub]: https://hub.docker.com/r/prom/prometheus/

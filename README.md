@@ -1,5 +1,5 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/anodot/anodot-remote-write)](https://goreportcard.com/report/github.com/anodot/anodot-remote-write)
-![Docker Pulls](https://img.shields.io/docker/pulls/anodot/prometheus-remote-write)
+[![Docker Pulls](https://img.shields.io/docker/pulls/anodot/prometheus-remote-write)][https://hub.docker.com/r/anodot/prometheus-remote-write]
 
 # Anodot Prometheous Remote Write
 
@@ -33,14 +33,14 @@ make test
 # Deploying application application
 
 ## Prerequisites
-- Docker 1.18ce.
-- Prometheus Server on K8s cluster.
+- Docker >=1.18ce
+- Prometheus Server
 
 ### Using helm
-
-1. Navigate to `deployment/helm/anodot-remote-write`
-2. Edit `values.yaml` and fill in required variables.
-3. Run next command:
+1. `helm repo add anodot https://anodot.github.io/helm-charts`
+2. `helm fetch anodot/anodot-prometheus-remote-write --untar`
+3. Edit `values.yaml` and fill in required variables.
+4. Run next command:
 
 ```shell script
 helm upgrade -i anodot-remote-write -n monitoring . 

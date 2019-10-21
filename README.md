@@ -92,4 +92,4 @@ More Prometheus configuration options available on [this](https://github.com/cor
 
 This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details
 
-[hub]: https://hub.docker.com/r/prom/prometheus/
+[hub]: https://hub.docker.com/r/anodot/prometheus-remote-write

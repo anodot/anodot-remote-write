@@ -13,3 +13,4 @@
 *.out
 *.tgz
 /anodot-prometheus-remote-write
+/coverage.txt

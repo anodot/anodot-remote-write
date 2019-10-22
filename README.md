@@ -1,5 +1,6 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/anodot/anodot-remote-write)](https://goreportcard.com/report/github.com/anodot/anodot-remote-write)
 ![Docker Pulls](https://img.shields.io/docker/pulls/anodot/prometheus-remote-write)
+[![codecov](https://codecov.io/gh/anodot/anodot-remote-write/branch/master/graph/badge.svg)](https://codecov.io/gh/anodot/anodot-remote-write)
 
 # Anodot Prometheous Remote Write
 

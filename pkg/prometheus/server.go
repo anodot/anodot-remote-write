@@ -70,7 +70,7 @@ func (rc *Receiver) InitHttp(s *anodotSubmitter.Anodot20Submitter, stats *remote
 		}
 
 		metrics := rc.Parser.ParsePrometheusRequest(rc.protoToSamples(&req), stats)
-		workers.Do(&metrics, s)
+		workers.Do(metrics, s)
 	})
 
 	http.HandleFunc(HEALTH_ENDPOINT, func(w http.ResponseWriter, r *http.Request) {

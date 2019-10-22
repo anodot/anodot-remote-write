@@ -51,7 +51,7 @@ build-charts:
 	helm package deployment/helm/*
 
 test:
-	GOFLAGS=$(GOFLAGS) $(GO) test -v -race ./...
+	GOFLAGS=$(GOFLAGS) $(GO) test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
 
 test-container:
 	@docker rm -f $(APPLICATION_NAME) || true
@@ -70,3 +70,7 @@ version-set:
 	sed -i '' 's/appVersion: "$(PREVIOUS_VERSION)"/appVersion: "$(VERSION)"/g' deployment/helm/anodot-prometheus-remote-write/Chart.yaml && \
 	sed -i '' 's#$(DOCKER_IMAGE_NAME):$(PREVIOUS_VERSION)#$(DOCKER_IMAGE_NAME):$(VERSION)#g' deployment/docker-compose/docker-compose.yaml && \
 	echo "Version $(VERSION) set in code, deployment, chart"
+
+vendor-update:
+	GO111MODULE=on go mod tidy
+	GO111MODULE=on go mod vendor

@@ -1,0 +1,19 @@
+global:
+  scrape_interval:     3s
+  evaluation_interval: 1s
+
+remote_write:
+  - url: "http://remote-write:1234/receive"
+    write_relabel_configs:
+      - source_labels: [ __name__ ]
+        regex: 'exported_http_requests_total|exported_version'
+        action: keep
+    queue_config:
+      batch_send_deadline: 1s
+
+scrape_configs:
+  - job_name: 'test-app'
+    metrics_path: '/stub/metrics'
+
+    static_configs:
+      - targets: ['anodot-metrics-stub:8080']

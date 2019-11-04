@@ -6,6 +6,7 @@ import (
 	"github.com/anodot/anodot-common/anodotSubmitter"
 	"github.com/anodot/anodot-common/remoteStats"
 	"github.com/anodot/anodot-remote-write/pkg/remote"
+	"github.com/anodot/anodot-remote-write/pkg/version"
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/snappy"
 	"github.com/prometheus/client_golang/prometheus"
@@ -25,14 +26,19 @@ type Receiver struct {
 
 var (
 	totalRequests = promauto.NewCounter(prometheus.CounterOpts{
-		Name: "received_requests",
+		Name: "anodot_remote_write_received_requests",
 		Help: "The total number of received requests from Prometheus server",
 	})
 
 	httpResponses = promauto.NewCounterVec(prometheus.CounterOpts{
-		Name: "http_responses_total",
+		Name: "anodot_remote_write_http_responses_total",
 		Help: "Total number of HTTP reposes",
 	}, []string{"response_code"})
+
+	versionInfo = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "anodot_remote_write_version",
+		Help: "Build info",
+	}, []string{"version", "git_sha1"})
 )
 
 const RECEIVER_ENDPOINT = "/receive"
@@ -92,6 +98,7 @@ func (rc *Receiver) InitHttp(s *anodotSubmitter.Anodot20Submitter, stats *remote
 	})
 	http.Handle("/metrics", promhttp.Handler())
 
+	versionInfo.With(prometheus.Labels{"version": version.VERSION, "git_sha1": version.REVISION}).Inc()
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", rc.Port), nil))
 
 }

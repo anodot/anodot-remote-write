@@ -14,3 +14,5 @@
 *.tgz
 /anodot-prometheus-remote-write
 /coverage.txt
+*.log
+/e2e/e2e/tmp/

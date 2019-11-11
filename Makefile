@@ -36,9 +36,9 @@ vet:
 
 build:
 	@echo ">> building binaries with version $(VERSION)"
-	$(BUILD_FLAGS) $(GO) build -ldflags "-s -w -X github.com/anodot/anodot-prometheus-remote-write/pkg/version.REVISION=$(GIT_COMMIT)" -o $(APPLICATION_NAME)
+	$(BUILD_FLAGS) $(GO) build -ldflags "-s -w -X github.com/anodot/anodot-remote-write/pkg/version.REVISION=$(GIT_COMMIT)" -o $(APPLICATION_NAME)
 
-build-container:
+build-container: build
 	docker build -t $(DOCKER_IMAGE_NAME):$(VERSION) .
 	@echo ">> created docker image $(DOCKER_IMAGE_NAME):$(VERSION)"
 
@@ -51,7 +51,7 @@ build-charts:
 	helm package deployment/helm/*
 
 test:
-	GOFLAGS=$(GOFLAGS) $(GO) test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
+	GOFLAGS=$(GOFLAGS) $(GO) test -v -race -coverprofile=coverage.txt -covermode=atomic -timeout 10s ./pkg/... ./anodotRemoteTests/...
 
 test-container:
 	@docker rm -f $(APPLICATION_NAME) || true
@@ -61,6 +61,9 @@ test-container:
 
 	docker logs $(APPLICATION_NAME)
 	@docker rm -f $(APPLICATION_NAME)
+
+e2e: build-container
+	GOFLAGS=$(GOFLAGS) $(GO) test -v -count=1 -timeout 60s ./e2e/...
 
 push-container:
 	docker push $(DOCKER_IMAGE_NAME):$(VERSION)

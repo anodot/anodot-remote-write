@@ -3,7 +3,6 @@ package remote
 import (
 	"fmt"
 	"github.com/anodot/anodot-common/anodotParser"
-	"github.com/anodot/anodot-common/remoteStats"
 	"io/ioutil"
 	"log"
 	"testing"
@@ -26,8 +25,7 @@ func TestMetricsSizeAboveBuffer(t *testing.T) {
 		anodotRequestNumber++
 	}}
 
-	stats := remoteStats.NewStats()
-	worker := NewWorker(0, &stats, false)
+	worker := NewWorker(0, false)
 	worker.Do(randomMetrics(reqSize), mockSubmitter)
 }
 
@@ -57,8 +55,7 @@ func TestMetricsShouldBeBuffered(t *testing.T) {
 		}}},
 	}
 
-	stats := remoteStats.NewStats()
-	worker := NewWorker(0, &stats, false)
+	worker := NewWorker(0, false)
 
 	for _, data := range testData {
 		worker.Do(randomMetrics(data.metricsSize), data.MockSubmitter)
@@ -73,8 +70,7 @@ func TestNoMetricsSendInDebugMode(t *testing.T) {
 		t.Errorf("No metrics should be sent in debug mode")
 	}}
 
-	stats := remoteStats.NewStats()
-	worker := NewWorker(0, &stats, true)
+	worker := NewWorker(0, true)
 	worker.Do(randomMetrics(reqSize), mockSubmitter)
 }
 

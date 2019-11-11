@@ -22,6 +22,9 @@ jobs:
       - name: Run tests
         run: make test-all
 
+      - name: Run e2e tests
+        run: make e2e
+
       - name: Publish coverage
         uses: codecov/codecov-action@v1.0.3
         with:

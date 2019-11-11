@@ -97,7 +97,7 @@ func main() {
 	submitter := anodotSubmitter.NewAnodot20Submitter(*url, *port, *token, &Stats, *murl, *mport, *mtoken)
 
 	//Workers manager -> number of threads that communicate with Anodot
-	var w = remote.NewWorker(*workers, &Stats, *debug)
+	var w = remote.NewWorker(*workers, *debug)
 
 	//Actual server listening on port - serverPort
 	var s = prometheus.Receiver{Port: *serverPort, Parser: &parser}

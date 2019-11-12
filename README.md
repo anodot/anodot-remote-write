@@ -39,13 +39,22 @@ make test
 
 ### Using helm
 
-1. Navigate to `deployment/helm/anodot-remote-write`
-2. Edit `values.yaml` and fill in required variables.
-3. Run next command:
+```shell script
+helm repo add anodot https://anodot.github.io/helm-charts
+```
 
 ```shell script
-helm upgrade -i anodot-remote-write -n monitoring . 
+helm fetch anodot/anodot-prometheus-remote-write --untar
 ```
+
+Navigate to `anodot-prometheus-remote-write` folder and edit `values.yaml`with required values (image version, anodot token,
+etc)
+
+Run next command to install chart
+```shell script
+helm upgrade -i anodot-remote-write .
+```
+
 This command will install application in `monitoring` namespace.
 
 ### Using docker-compose

@@ -1,38 +1,41 @@
-package anodotParser
+package prometheus
 
 import (
-	"github.com/prometheus/common/model"
-	"fmt"
-	"sort"
 	"bytes"
-	"strings"
-	"math"
-	"github.com/anodot/anodot-common/remoteStats"
 	"encoding/json"
-	"log"
 	"errors"
+	"fmt"
+	"github.com/anodot/anodot-common/pkg/metrics"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
+	"github.com/prometheus/common/model"
+	"log"
+	"math"
+	"sort"
+	"strings"
 )
 
-type AnodotMetric struct {
-	Properties  map[string]string   `json:"properties"`
-	Timestamp   float64   			`json:"timestamp"`
-	Value 		float64 			`json:"value"`
-	Tags        map[string]string	`json:"tags"`
-}
+const (
+	maxPropertyLength     = 150
+	maxNumberOfProperties = 20
+)
+
+var (
+	metricsPropertiesSizeExceeded = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "anodot_parser_max_number_labels_reached",
+		Help: fmt.Sprintf("Number of times when Prometheus metric had more labels that allowed(%d).", maxNumberOfProperties),
+	})
+
+	incorrectValue = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "anodot_parser_value_not_accepted",
+		Help: "Number of times metrics value was not accepted",
+	})
+)
+
 type AnodotParser struct {
 	FilterOutProperties map[string]string `json:"fop"`
-	FilterInProperties map[string]string `json:"fip"`
+	FilterInProperties  map[string]string `json:"fip"`
 }
-
-const (
-	MAX_PROPERTY_LENGTH = 150
-	MAX_NUMBER_OF_PROPERTIES = 20
-	WHAT_PROPERTY = "what"
-	TARGET_TYPE = "target_type"
-	COUNTER = "COUNTER"
-	GAUGE = "GAUGE"
-)  
-
 
 const (
 	symbols    = "(){},=.'\"\\"
@@ -41,31 +44,29 @@ const (
 		"!\"#$%&\\'()*+,-./:;<=>?@[\\]^_`{|}~")
 )
 
-func NewAnodotParser(filterIn *string, filterOut *string) (error,AnodotParser) {
+func NewAnodotParser(filterIn *string, filterOut *string) (*AnodotParser, error) {
 
 	var parser AnodotParser
 
 	if filterIn != nil && *filterIn != "" {
-		error := json.Unmarshal([]byte(*filterIn),&parser.FilterInProperties)
-		if error != nil {
-			log.Println("Failed to Parse In Filter")
-			return errors.New("Failed to Parse Filter"),parser
+		err := json.Unmarshal([]byte(*filterIn), &parser.FilterInProperties)
+		if err != nil {
+			return nil, errors.New("failed to parse filterIn expression")
 		}
 	}
 
 	if filterOut != nil && *filterOut != "" {
-		error := json.Unmarshal([]byte(*filterOut),&parser.FilterOutProperties)
-		if error != nil {
-			log.Println("Failed to Parse Out Filter")
-			return errors.New("Failed to Parse Filter"),parser
+		err := json.Unmarshal([]byte(*filterOut), &parser.FilterOutProperties)
+		if err != nil {
+			return nil, errors.New("failed to parse filterOut expression")
 		}
 	}
-	return nil,parser
+	return &parser, nil
 }
 
-func (p *AnodotParser) filter(metrics *[]AnodotMetric,metric *AnodotMetric) {
+func (p *AnodotParser) filter(metrics *[]metrics.Anodot20Metric, metric *metrics.Anodot20Metric) {
 
-	for k := range p.FilterInProperties{
+	for k := range p.FilterInProperties {
 		if val, ok := metric.Properties[k]; ok {
 			if p.FilterInProperties[k] == val {
 				*metrics = append(*metrics, *metric)
@@ -78,7 +79,7 @@ func (p *AnodotParser) filter(metrics *[]AnodotMetric,metric *AnodotMetric) {
 		return
 	}
 
-	for k := range p.FilterOutProperties{
+	for k := range p.FilterOutProperties {
 		if val, ok := metric.Properties[k]; ok {
 			if p.FilterOutProperties[k] == val {
 				return
@@ -88,7 +89,6 @@ func (p *AnodotParser) filter(metrics *[]AnodotMetric,metric *AnodotMetric) {
 
 	*metrics = append(*metrics, *metric)
 }
-
 
 func (p *AnodotParser) escape(tv model.LabelValue) string {
 	length := len(tv)
@@ -111,24 +111,31 @@ func (p *AnodotParser) escape(tv model.LabelValue) string {
 		}
 	}
 
-	if len(result.String()) >= MAX_PROPERTY_LENGTH{
-		return result.String()[:MAX_PROPERTY_LENGTH]
+	if len(result.String()) >= maxPropertyLength {
+		return result.String()[:maxPropertyLength]
 	}
 
 	return result.String()
 }
 
-
-func (p *AnodotParser) ParsePrometheusRequest(samples model.Samples, stats remoteStats.RemoteStatsInterface)([]AnodotMetric)  {
-
-	metrics := make([]AnodotMetric,0)
+func (p *AnodotParser) ParsePrometheusRequest(samples model.Samples) []metrics.Anodot20Metric {
+	result := make([]metrics.Anodot20Metric, 0)
 
 	for _, r := range samples {
-		var metric AnodotMetric
-		metric.Timestamp = float64(r.Timestamp.UnixNano()) / 1e9
+		var metric metrics.Anodot20Metric
+
+		metric.Timestamp = metrics.AnodotTimestamp{Time: r.Timestamp.Time()}
 		metric.Value = float64(r.Value)
 
 		if math.IsNaN(metric.Value) || math.IsInf(metric.Value, 0) {
+			incorrectValue.Inc()
+			log.Println(fmt.Sprintf("[WARNING]: Metrics value is not acceptable. %s", r))
+			continue
+		}
+
+		if len(r.Metric) > maxNumberOfProperties {
+			log.Println(fmt.Sprintf("[WARNING]: Metric is skipped. Numer of lables is more that allowed(%d). %s", maxNumberOfProperties, r))
+			metricsPropertiesSizeExceeded.Inc()
 			continue
 		}
 
@@ -140,25 +147,20 @@ func (p *AnodotParser) ParsePrometheusRequest(samples model.Samples, stats remot
 		metric.Properties = make(map[string]string)
 		for _, l := range labels {
 
-			if len(labels) > MAX_NUMBER_OF_PROPERTIES{
-				stats.UpdateMeter(remoteStats.PARSING_ERRORS,1)
-				continue
-			}
-
 			v := r.Metric[l]
 
-			if  len(l) == 0 || len(v) == 0{
+			if len(l) == 0 || len(v) == 0 {
 				continue
 			}
 
-			if len(l) >= MAX_PROPERTY_LENGTH{
-				l = l[:MAX_PROPERTY_LENGTH]
+			if len(l) >= maxPropertyLength {
+				l = l[:maxPropertyLength]
 			}
 
-
-			if l == model.MetricNameLabel{
-				metric.Properties[WHAT_PROPERTY] = p.escape(v)
+			if l == model.MetricNameLabel {
+				metric.Properties["what"] = p.escape(v)
 				metric.Tags = make(map[string]string)
+
 				//Should be managed on prometheus config
 				/*if strings.HasSuffix(metric.Properties[WHAT_PROPERTY],"_total") {
 					metric.Properties[TARGET_TYPE] = COUNTER
@@ -172,16 +174,10 @@ func (p *AnodotParser) ParsePrometheusRequest(samples model.Samples, stats remot
 				continue
 			}
 
-			metric.Properties[string(l)] = p.escape(v);
+			metric.Properties[string(l)] = p.escape(v)
 		}
-		p.filter(&metrics, &metric)
+		p.filter(&result, &metric)
 
 	}
-	return metrics
+	return result
 }
-
-
-
-
-
-

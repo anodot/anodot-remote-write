@@ -2,22 +2,18 @@ package main
 
 import (
 	"flag"
-	"fmt"
-	"github.com/anodot/anodot-common/anodotParser"
-	"github.com/anodot/anodot-common/anodotSubmitter"
-	"github.com/anodot/anodot-common/remoteStats"
+	metrics2 "github.com/anodot/anodot-common/pkg/metrics"
+	anodotPrometheus "github.com/anodot/anodot-common/pkg/metrics/prometheus"
+	"net/url"
+
 	"github.com/anodot/anodot-remote-write/pkg/prometheus"
 	"github.com/anodot/anodot-remote-write/pkg/remote"
 	"github.com/anodot/anodot-remote-write/pkg/version"
-	"github.com/rcrowley/go-metrics"
 	"log"
-	"os"
 	"runtime"
-	"time"
 )
 
 const (
-	FLUSH_STATISTICS_TO_LOG   = 300
 	DEFAULT_PORT              = 1234
 	DEFAULT_NUMBER_OF_WORKERS = 20
 	DEFAULT_TOKEN             = ""
@@ -25,23 +21,8 @@ const (
 	DEFAULT_ANODOT_URL        = "https://api.anodot.com"
 )
 
-func Mb(b uint64) uint64 {
-	return b / 1024 / 1024
-}
-
-func PrintMemUsage() {
-	var m runtime.MemStats
-	runtime.ReadMemStats(&m)
-	// For info on each, see: https://golang.org/pkg/runtime/#MemStats
-	fmt.Printf("Alloc = %v MiB", Mb(m.Alloc))
-	fmt.Printf("\tTotalAlloc = %v MiB", Mb(m.TotalAlloc))
-	fmt.Printf("\tSys = %v MiB", Mb(m.Sys))
-	fmt.Printf("\tNumGC = %v\n", m.NumGC)
-}
-
 func main() {
-
-	var url = flag.String("url", DEFAULT_ANODOT_URL, "Anodot Endpoint")
+	var serverUrl = flag.String("url", DEFAULT_ANODOT_URL, "Anodot Endpoint")
 	var port = flag.String("port", DEFAULT_ANODOT_PORT, "Anodot Port")
 	var token = flag.String("token", DEFAULT_TOKEN, "Account API Token")
 	var serverPort = flag.Int("sever", DEFAULT_PORT, "Prometheus Remote Port")
@@ -55,12 +36,6 @@ func main() {
 
 	flag.Parse()
 
-	if *token == "" {
-		log.Println("No Token provided")
-		flag.Usage()
-		os.Exit(1)
-	}
-
 	log.Println("---Anodot Remote Write---")
 
 	log.Printf("App version: %q. GitSHA: %q", version.VERSION, version.REVISION)
@@ -68,41 +43,63 @@ func main() {
 	log.Printf("Go OS/Arch: %s/%s", runtime.GOOS, runtime.GOARCH)
 
 	log.Println("Starting Anodot Remote Port: ", *serverPort)
-	log.Println("Anodot Address:", *url, *port)
 	log.Println("Token:", *token)
+
+	var mirrorSubmitter metrics2.Submitter
 	if *murl != "" {
 		log.Println("Anodot Address - Mirror:", *murl, *mport)
 		log.Println("Token - Mirror:", *mtoken)
 		log.Println("Number of Workers:", *workers)
-	}
 
-	//Prepare filters
-	err, parser := anodotParser.NewAnodotParser(filterIn, filterOut)
-
-	if err != nil {
-		log.Println(err.Error())
-	}
-
-	//Initialize statistics
-	var Stats = remoteStats.NewStats()
-	go metrics.Log(Stats.Registry, FLUSH_STATISTICS_TO_LOG*time.Second, log.New(os.Stdout, "metrics: ", log.Lmicroseconds))
-
-	//Print Memory Statistics
-	go func() {
-		for range time.Tick(5 * time.Minute) {
-			PrintMemUsage()
+		mirrorURL, err := toUrl(murl, port)
+		if err != nil {
+			log.Fatalf("[ERROR]: failed to construct anodot server url with host=%q and port=%q. Error:%s", *murl, *mport, err.Error())
 		}
-	}()
 
-	submitter := anodotSubmitter.NewAnodot20Submitter(*url, *port, *token, &Stats, *murl, *mport, *mtoken)
+		mirrorSubmitter, err = metrics2.NewAnodot20Submitter(mirrorURL.String(), *mtoken, nil)
+		if err != nil {
+			log.Fatalf("[ERROR]: failed to create mirror submitter: %s", err.Error())
+		}
+	}
 
-	//Workers manager -> number of threads that communicate with Anodot
-	var w = remote.NewWorker(*workers, *debug)
+	parser, err := anodotPrometheus.NewAnodotParser(filterIn, filterOut)
+	if err != nil {
+		log.Fatalf("[ERROR]: failed to initialize anodot parser. Error: %s", err.Error())
+	}
+
+	primaryUrl, err := toUrl(serverUrl, port)
+	if err != nil {
+		log.Fatalf("[ERROR]: failed to construct anodot server url with host=%q and port=%q. Error:%s", *serverUrl, *port, err.Error())
+	}
+
+	primarySubmitter, err := metrics2.NewAnodot20Submitter(primaryUrl.String(), *token, nil)
+	if err != nil {
+		log.Fatalf("[ERROR]: failed to create Anodot metrics submitter: %s", err.Error())
+	}
 
 	//Actual server listening on port - serverPort
-	var s = prometheus.Receiver{Port: *serverPort, Parser: &parser}
+	var s = prometheus.Receiver{Port: *serverPort, Parser: parser}
 
 	//Initializer -> listener, endpoints etc
-	s.InitHttp(&submitter, &Stats, &w)
+	primaryMapping := prometheus.AnodotApiMapping{
+		Workers:   remote.NewWorker(*workers, *debug),
+		Submitter: primarySubmitter,
+	}
 
+	mappings := make([]prometheus.AnodotApiMapping, 0)
+	mappings = append(mappings, primaryMapping)
+
+	if mirrorSubmitter != nil {
+		mappings = append(mappings, prometheus.AnodotApiMapping{
+			Workers:   remote.NewWorker(*workers, *debug),
+			Submitter: mirrorSubmitter,
+		})
+	}
+
+	s.InitHttp(mappings)
+}
+
+//TODO remove in future
+func toUrl(serverUrl *string, port *string) (*url.URL, error) {
+	return url.Parse(*serverUrl + ":" + *port)
 }

@@ -19,7 +19,7 @@
 
 # Building application
 ## Prerequisites
- - Go >= 1.11
+ - Go >= 1.13
  
 ```shell script
 git clone https://github.com/anodot/anodot-remote-write.git && cd anodot-remote-write

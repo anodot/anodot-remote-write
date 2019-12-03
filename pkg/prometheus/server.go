@@ -2,9 +2,9 @@ package prometheus
 
 import (
 	"fmt"
-	"github.com/anodot/anodot-common/anodotParser"
-	"github.com/anodot/anodot-common/anodotSubmitter"
-	"github.com/anodot/anodot-common/remoteStats"
+	"github.com/anodot/anodot-common/pkg/metrics"
+	anodotProm "github.com/anodot/anodot-common/pkg/metrics/prometheus"
+
 	"github.com/anodot/anodot-remote-write/pkg/remote"
 	"github.com/anodot/anodot-remote-write/pkg/version"
 	"github.com/golang/protobuf/proto"
@@ -21,7 +21,16 @@ import (
 
 type Receiver struct {
 	Port   int
-	Parser *anodotParser.AnodotParser
+	Parser *anodotProm.AnodotParser
+}
+
+type AnodotApiMapping struct {
+	Workers   *remote.Worker
+	Submitter metrics.Submitter
+}
+
+func (a AnodotApiMapping) String() string {
+	return fmt.Sprintf("serverURL: %q. Number of concurrency: %d", a.Submitter.AnodotURL().String(), a.Workers.Max)
 }
 
 var (
@@ -32,7 +41,7 @@ var (
 
 	httpResponses = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "anodot_remote_write_http_responses_total",
-		Help: "Total number of HTTP reposes",
+		Help: "Total number of Anodot Remote Write HTTP responses",
 	}, []string{"response_code"})
 
 	versionInfo = promauto.NewCounterVec(prometheus.CounterOpts{
@@ -63,7 +72,8 @@ func (rc *Receiver) protoToSamples(req *prompb.WriteRequest) model.Samples {
 	return samples
 }
 
-func (rc *Receiver) InitHttp(s *anodotSubmitter.Anodot20Submitter, stats *remoteStats.RemoteStats, workers *remote.Worker) {
+func (rc *Receiver) InitHttp(a []AnodotApiMapping) {
+	log.Println(fmt.Sprintf("Creating with %d mappings: ", len(a)), a)
 
 	http.HandleFunc(RECEIVER_ENDPOINT, func(w http.ResponseWriter, r *http.Request) {
 		totalRequests.Inc()
@@ -89,8 +99,13 @@ func (rc *Receiver) InitHttp(s *anodotSubmitter.Anodot20Submitter, stats *remote
 			return
 		}
 
-		metrics := rc.Parser.ParsePrometheusRequest(rc.protoToSamples(&req), stats)
-		workers.Do(metrics, s)
+		data := rc.Parser.ParsePrometheusRequest(rc.protoToSamples(&req))
+
+		for i := 0; i < len(a); i++ {
+			anoMapping := a[i]
+			anoMapping.Workers.Do(data, anoMapping.Submitter)
+		}
+
 	})
 
 	http.HandleFunc(HEALTH_ENDPOINT, func(w http.ResponseWriter, r *http.Request) {

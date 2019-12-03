@@ -16,7 +16,7 @@ GIT_COMMIT := $(shell git describe --dirty --always)
 
 all: clean format vet build-charts test build build-container test-container
 publish-container: clean format vet build-charts test build build-container test-container push-container
-lint: check-formatting vet build-charts
+lint: check-formatting errorcheck vet build-charts
 test-all: test build build-container test-container
 
 clean:
@@ -33,6 +33,12 @@ format:
 vet:
 	@curl -sfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh| sh -s -- -b $$(go env GOPATH)/bin v$(GOLINT_VERSION)
 	$(BUILD_FLAGS) $$(go env GOPATH)/bin/golangci-lint run
+
+errorcheck: install-errcheck
+	$$(go env GOPATH)/bin/errcheck ./pkg/...
+
+install-errcheck:
+	which errcheck || GO111MODULE=off go get -u github.com/kisielk/errcheck
 
 build:
 	@echo ">> building binaries with version $(VERSION)"
@@ -51,7 +57,7 @@ build-charts:
 	helm package deployment/helm/*
 
 test:
-	GOFLAGS=$(GOFLAGS) $(GO) test -v -race -coverprofile=coverage.txt -covermode=atomic -timeout 10s ./pkg/... ./anodotRemoteTests/...
+	GOFLAGS=$(GOFLAGS) $(GO) test -v -race -coverprofile=coverage.txt -covermode=atomic -timeout 10s ./pkg/...
 
 test-container: build-container
 	@docker rm -f $(APPLICATION_NAME) || true
@@ -75,6 +81,7 @@ version-set:
 	@sed -i '' 's/tag: "$(PREVIOUS_VERSION)"/tag: "$(VERSION)"/g' deployment/helm/anodot-prometheus-remote-write/values.yaml && \
 	sed -i '' 's/appVersion: "$(PREVIOUS_VERSION)"/appVersion: "$(VERSION)"/g' deployment/helm/anodot-prometheus-remote-write/Chart.yaml && \
 	sed -i '' 's#$(DOCKER_IMAGE_NAME):$(PREVIOUS_VERSION)#$(DOCKER_IMAGE_NAME):$(VERSION)#g' deployment/docker-compose/docker-compose.yaml && \
+	sed -i '' 's#$(DOCKER_IMAGE_NAME):$(PREVIOUS_VERSION)#$(DOCKER_IMAGE_NAME):$(VERSION)#g' e2e/docker-compose.yaml && \
 	echo "Version $(VERSION) set in code, deployment, chart"
 
 vendor-update:

@@ -59,7 +59,7 @@ build-charts:
 test:
 	GOFLAGS=$(GOFLAGS) $(GO) test -v -race -coverprofile=coverage.txt -covermode=atomic -timeout 10s ./pkg/... ./anodotRemoteTests/...
 
-test-container:
+test-container: build-container
 	@docker rm -f $(APPLICATION_NAME) || true
 	@docker run -d -P --name=$(APPLICATION_NAME) $(DOCKER_IMAGE_NAME):$(VERSION) --token abc --url http://localhost:9090
 	docker ps
@@ -71,8 +71,11 @@ test-container:
 e2e: build-container
 	GOFLAGS=$(GOFLAGS) $(GO) test -v -count=1 -timeout 60s ./e2e/...
 
-push-container:
+push-container: test-container
 	docker push $(DOCKER_IMAGE_NAME):$(VERSION)
+
+dockerhub-login:
+	docker login -u $(DOCKER_USERNAME) -p $(DOCKER_PASSWORD)
 
 version-set:
 	@sed -i '' 's/tag: "$(PREVIOUS_VERSION)"/tag: "$(VERSION)"/g' deployment/helm/anodot-prometheus-remote-write/values.yaml && \

@@ -35,7 +35,7 @@ vet:
 	$(BUILD_FLAGS) $$(go env GOPATH)/bin/golangci-lint run
 
 errorcheck: install-errcheck
-	errcheck ./pkg/...
+	$$(go env GOPATH)/bin/errcheck ./pkg/...
 
 install-errcheck:
 	which errcheck || GO111MODULE=off go get -u github.com/kisielk/errcheck

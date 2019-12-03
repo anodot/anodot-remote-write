@@ -90,7 +90,8 @@ func (m MockSubmitter) SubmitMetrics(metrics []metrics.Anodot20Metric) (*metrics
 }
 
 func (m MockSubmitter) AnodotURL() *url.URL {
-	return nil
+	parse, _ := url.Parse("http://127.0.0.1")
+	return parse
 }
 
 func randomMetrics(size int) []metrics.Anodot20Metric {

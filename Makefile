@@ -57,7 +57,7 @@ build-charts:
 	helm package deployment/helm/*
 
 test:
-	GOFLAGS=$(GOFLAGS) $(GO) test -v -race -coverprofile=coverage.txt -covermode=atomic -timeout 10s ./pkg/... ./anodotRemoteTests/...
+	GOFLAGS=$(GOFLAGS) $(GO) test -v -race -coverprofile=coverage.txt -covermode=atomic -timeout 10s ./pkg/...
 
 test-container: build-container
 	@docker rm -f $(APPLICATION_NAME) || true

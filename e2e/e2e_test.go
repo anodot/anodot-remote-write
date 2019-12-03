@@ -143,6 +143,24 @@ func shellCommand(command string, args ...string) ([]byte, error) {
 	return out, err
 }
 
+func TestMetricsSize(t *testing.T) {
+	data, err := ioutil.ReadFile("./tmp/metrics.log")
+	if err != nil {
+		t.Fatal("Failed to read metrics output file:", err)
+	}
+
+	metrics := make([]Metrics, 0)
+	err = json.Unmarshal(data, &metrics)
+	if err != nil {
+		t.Fatal("Failed to read metrics output as json:", err)
+	}
+
+	if len(metrics) != 4 {
+		t.Fatal(fmt.Sprintf("Not expected numer of metrics.\n Got: %v\n Want: %v", len(metrics), 4))
+	}
+
+}
+
 func TestMetricsSortedASC(t *testing.T) {
 	data, err := ioutil.ReadFile("./tmp/metrics.log")
 	if err != nil {

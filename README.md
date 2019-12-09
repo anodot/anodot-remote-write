@@ -1,3 +1,4 @@
+[![Latest Release](https://img.shields.io/github/release/anodot/anodot-remote-write.svg)](https://github.com/anodot/anodot-remote-write/releases/latest)
 [![Go Report Card](https://goreportcard.com/badge/github.com/anodot/anodot-remote-write)](https://goreportcard.com/report/github.com/anodot/anodot-remote-write)
 [![Docker pulls](https://img.shields.io/docker/pulls/anodot/prometheus-remote-write.svg)](https://hub.docker.com/r/anodot/prometheus-remote-write)
 [![codecov](https://codecov.io/gh/anodot/anodot-remote-write/branch/master/graph/badge.svg)](https://codecov.io/gh/anodot/anodot-remote-write)

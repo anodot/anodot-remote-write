@@ -6,24 +6,22 @@ import (
 	"io/ioutil"
 	"log"
 	"net/url"
+	"sort"
 	"testing"
+	"time"
 )
 
-//TODO add test for publishing metrics
-func TestMetricsSizeAboveBuffer(t *testing.T) {
-	var anodotRequestNumber int
-
-	reqSize := 1500
+func TestMetricsShouldBeBuffered(t *testing.T) {
+	expectedMetricsPerRequestSize := 1000
 
 	mockSubmitter := &MockSubmitter{f: func(data []metrics.Anodot20Metric) (*metrics.AnodotResponse, error) {
-		if anodotRequestNumber == 0 && len(data) != 1000 {
+		if len(data) != expectedMetricsPerRequestSize {
 			t.Errorf(fmt.Sprintf("Submitted metreics size is %d. Required size is: %d", len(data), 1000))
 		}
-		// on second request  - remaining data
-		if anodotRequestNumber == 1 && len(data) != 500 {
-			t.Errorf(fmt.Sprintf("Submitted metreics size is %d. Required size is: %d", len(data), 200))
+
+		if !sort.IsSorted(byTimestamp(data)) {
+			t.Fatal("data should be sorted by time ASC")
 		}
-		anodotRequestNumber++
 		return nil, nil
 	}}
 
@@ -31,46 +29,51 @@ func TestMetricsSizeAboveBuffer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	worker.Do(randomMetrics(reqSize))
+
+	//nothing should be send here, only saved in buffer
+	metrics := randomMetrics(2000)
+
+	worker.Do(metrics[0:100])
+	if len(worker.MetricsBuffer) != 100 {
+		t.Fatal("metrics should be saved in buffer")
+	}
+
+	//nothing should be send here, only saved in buffer
+	worker.Do(metrics[100:900])
+	if len(worker.MetricsBuffer) != 900 {
+		t.Fatal("metrics should be saved in buffer")
+	}
+
+	if !sort.IsSorted(byTimestamp(worker.MetricsBuffer)) {
+		t.Fatal("metrics in buffer should be sorted by time ASC")
+	}
+
+	// 1000 metrics should be sent, so 100+800+600-1000=500
+	worker.Do(metrics[900:1500])
+	if len(worker.MetricsBuffer) != 500 {
+		t.Fatal("metrics should be saved in buffer")
+	}
+	if !sort.IsSorted(byTimestamp(worker.MetricsBuffer)) {
+		t.Fatal("metrics in buffer should be sorted by time ASC")
+	}
+
+	worker.Do(metrics[1500:2000])
+	if len(worker.MetricsBuffer) != 0 {
+		t.Fatal("metrics should be saved in buffer")
+	}
+
 }
 
-func TestMetricsShouldBeBuffered(t *testing.T) {
-	var anodotRequestNumber int
+type byTimestamp []metrics.Anodot20Metric
 
-	var testData = []struct {
-		metricsSize   int
-		MockSubmitter MockSubmitter
-	}{
-		{200, MockSubmitter{f: func(metrics []metrics.Anodot20Metric) (*metrics.AnodotResponse, error) {
-			t.Fatal("1 Should not send any metrics if buffer not full")
-			return nil, nil
-		}}},
-		{300, MockSubmitter{f: func(metrics []metrics.Anodot20Metric) (*metrics.AnodotResponse, error) {
-			t.Fatal("2 Should not send any metrics if buffer not full")
-			return nil, nil
-		}}},
-		{700, MockSubmitter{f: func(metrics []metrics.Anodot20Metric) (*metrics.AnodotResponse, error) {
-			// on first request we need to send exactly 1000 metrics
-			if anodotRequestNumber == 0 && len(metrics) != 1000 {
-				t.Errorf(fmt.Sprintf("Submitted metreics size is %d. Required size is: %d", len(metrics), 1000))
-			}
-			// on second request  - remaining metrics
-			if anodotRequestNumber == 1 && len(metrics) != 200 {
-				t.Errorf(fmt.Sprintf("Submitted metreics size is %d. Required size is: %d", len(metrics), 200))
-			}
-			anodotRequestNumber++
-
-			return nil, nil
-		}}},
-	}
-
-	for _, data := range testData {
-		worker, err := NewWorker(data.MockSubmitter, 0, false)
-		if err != nil {
-			t.Fatal(err)
-		}
-		worker.Do(randomMetrics(data.metricsSize))
-	}
+func (s byTimestamp) Len() int {
+	return len(s)
+}
+func (s byTimestamp) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
+func (s byTimestamp) Less(i, j int) bool {
+	return s[i].Timestamp.UnixNano() <= s[j].Timestamp.UnixNano()
 }
 
 func TestNoMetricsSendInDebugMode(t *testing.T) {
@@ -105,32 +108,10 @@ func (m MockSubmitter) AnodotURL() *url.URL {
 func randomMetrics(size int) []metrics.Anodot20Metric {
 	data := make([]metrics.Anodot20Metric, 0, size)
 	for i := 0; i < size; i++ {
-		m := metrics.Anodot20Metric{Value: float64(i)}
+		m := metrics.Anodot20Metric{Value: float64(i),
+			Timestamp: metrics.AnodotTimestamp{Time: time.Now().Add(time.Second * time.Duration(i))}}
 		data = append(data, m)
 	}
 
 	return data
-}
-
-func TestSlice(t *testing.T) {
-	a := []string{"1", "2", "3", "4", "5", "6", "7", "8", "9", "10"}
-	b := make([]string, 0, 5)
-
-	fmt.Println(b)
-	fmt.Println(len(b))
-	fmt.Println(cap(b))
-
-	copy(b, a[0:5])
-	a = append(a[:0], a[5:]...)
-	a = append(a, "11")
-	a = append(a, "12")
-
-	fmt.Println(a)
-	fmt.Println(len(a))
-	fmt.Println(cap(a))
-
-	fmt.Println(b)
-	fmt.Println(len(b))
-	fmt.Println(cap(b))
-
 }

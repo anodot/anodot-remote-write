@@ -123,6 +123,7 @@ func (w *Worker) Do(data []metrics.Anodot20Metric) {
 	w.MetricsBuffer = append(w.MetricsBuffer[:0], w.MetricsBuffer[metricsPerRequest:]...)
 	bufferedMetrics.WithLabelValues(w.metricsSubmitter.AnodotURL().Host).Set(float64(len(w.MetricsBuffer)))
 
+	concurrentWorkers.WithLabelValues(w.metricsSubmitter.AnodotURL().Host).Set(float64(w.Current))
 	if w.Current >= w.Max {
 		concurrencyLimitReached.WithLabelValues(w.metricsSubmitter.AnodotURL().Host).Inc()
 		log.Warn("Reached workers concurrency limit. Sending metrics in single thread.")

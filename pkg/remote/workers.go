@@ -6,7 +6,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
-	"log"
+	log "github.com/sirupsen/logrus"
 	"os"
 	"strconv"
 	"strings"
@@ -16,13 +16,19 @@ import (
 )
 
 var metricsPerRequest = 1000
-var maxMetricsBufferSize = 1000
+var maxMetricsBufferSize = 10000
 
 type Worker struct {
+	metricsSubmitter metrics.Submitter
+
 	Max           int64
 	Current       int64
 	MetricsBuffer []metrics.Anodot20Metric
 	Debug         bool
+}
+
+func (w *Worker) String() string {
+	return fmt.Sprintf("Anodot URL='%s'", w.metricsSubmitter.AnodotURL().Host)
 }
 
 var labels = []string{"anodot_url"}
@@ -65,68 +71,66 @@ var (
 	}, labels)
 )
 
-func NewWorker(workersLimit int64, debug bool) *Worker {
-	metricsPerRequestStr := os.Getenv("ANODOT_METRICS_BUFFER_SIZE")
+func NewWorker(metricsSubmitter metrics.Submitter, workersLimit int64, debug bool) (*Worker, error) {
+	if metricsSubmitter == nil {
+		return nil, fmt.Errorf("metrics submitter should not be nil")
+	}
+
+	metricsPerRequestStr := os.Getenv("ANODOT_METRICS_PER_REQUEST_SIZE")
 	if len(strings.TrimSpace(metricsPerRequestStr)) != 0 {
 		v, e := strconv.Atoi(metricsPerRequestStr)
 		if e == nil {
-			maxMetricsBufferSize = v
+			metricsPerRequest = v
 		}
 	}
 
-	log.Println(fmt.Sprintf("Metrics per request size is : %d", metricsPerRequest))
-	log.Println(fmt.Sprintf("Metrics buffer size is : %d", maxMetricsBufferSize))
-	return &Worker{Max: workersLimit, MetricsBuffer: make([]metrics.Anodot20Metric, 0, maxMetricsBufferSize), Current: 0, Debug: debug}
+	log.Debug(fmt.Sprintf("Metrics per request size is : %d", metricsPerRequest))
+	log.Debug(fmt.Sprintf("Metrics buffer size is : %d", maxMetricsBufferSize))
+
+	worker := &Worker{metricsSubmitter: metricsSubmitter, Max: workersLimit, MetricsBuffer: make([]metrics.Anodot20Metric, 0, maxMetricsBufferSize), Current: 0, Debug: debug}
+	return worker, nil
 }
 
 var mutex = &sync.Mutex{}
 
-func (w *Worker) Do(data []metrics.Anodot20Metric, s metrics.Submitter) {
-	bufferSize.WithLabelValues(s.AnodotURL().Host).Set(float64(maxMetricsBufferSize))
+func (w *Worker) Do(data []metrics.Anodot20Metric) {
+	bufferSize.WithLabelValues(w.metricsSubmitter.AnodotURL().Host).Set(float64(maxMetricsBufferSize))
 
 	mutex.Lock()
 	defer mutex.Unlock()
 
 	metricsReceivedTotal.Add(float64(len(data)))
 	if w.Debug {
-		log.Println("Received metrics: ")
+		log.Debug(fmt.Sprintf("Received (%d) metrics: ", len(data)))
 		for i := 0; i < len(data); i++ {
-			log.Println((data)[i])
+			log.Trace((data)[i])
 		}
 		return
 	}
 
 	w.MetricsBuffer = append(w.MetricsBuffer, data...)
-	bufferedMetrics.WithLabelValues(s.AnodotURL().Host).Set(float64(len(w.MetricsBuffer)))
-	if len(w.MetricsBuffer) < maxMetricsBufferSize {
+	bufferedMetrics.WithLabelValues(w.metricsSubmitter.AnodotURL().Host).Set(float64(len(w.MetricsBuffer)))
+
+	log.Debug(fmt.Sprintf("Buffer size is %d", len(w.MetricsBuffer)))
+	if len(w.MetricsBuffer) < metricsPerRequest {
 		// need to wait until buffer will have enough elements to send
 		return
 	}
 
-	metricsToSend := make([]metrics.Anodot20Metric, len(w.MetricsBuffer))
-	copy(metricsToSend, w.MetricsBuffer)
-	w.MetricsBuffer = nil
-	bufferedMetrics.WithLabelValues(s.AnodotURL().Host).Set(float64(len(w.MetricsBuffer)))
+	metricsToSend := make([]metrics.Anodot20Metric, metricsPerRequest)
 
-	//send metrics by chunks with size = metricsPerRequest
-	for i := 0; i < len(metricsToSend); i += metricsPerRequest {
-		end := i + metricsPerRequest
+	copy(metricsToSend, w.MetricsBuffer[0:metricsPerRequest])
+	w.MetricsBuffer = append(w.MetricsBuffer[:0], w.MetricsBuffer[metricsPerRequest:]...)
+	bufferedMetrics.WithLabelValues(w.metricsSubmitter.AnodotURL().Host).Set(float64(len(w.MetricsBuffer)))
 
-		if end > len(metricsToSend) {
-			end = len(metricsToSend)
-		}
-
-		anodotMetricsChunk := metricsToSend[i:end]
-		concurrentWorkers.WithLabelValues(s.AnodotURL().Host).Set(float64(w.Current))
-		if w.Current >= w.Max {
-			concurrencyLimitReached.WithLabelValues(s.AnodotURL().Host).Inc()
-			log.Println("Reached workers concurrency limit. Sending metrics in single thread.")
-			w.pushMetrics(s, anodotMetricsChunk)
-		} else {
-			go func() {
-				w.pushMetrics(s, anodotMetricsChunk)
-			}()
-		}
+	if w.Current >= w.Max {
+		concurrencyLimitReached.WithLabelValues(w.metricsSubmitter.AnodotURL().Host).Inc()
+		log.Warn("Reached workers concurrency limit. Sending metrics in single thread.")
+		w.pushMetrics(w.metricsSubmitter, metricsToSend)
+	} else {
+		go func() {
+			w.pushMetrics(w.metricsSubmitter, metricsToSend)
+		}()
 	}
 }
 
@@ -139,13 +143,13 @@ func (w *Worker) pushMetrics(metricsSubmitter metrics.Submitter, metricsToSend [
 	anodotResponse, err := metricsSubmitter.SubmitMetrics(metricsToSend)
 	if err != nil {
 		anodotSubmitterErrors.WithLabelValues(metricsSubmitter.AnodotURL().Host).Inc()
-		log.Println("[ERROR] failed to send metrics: ", err)
+		log.Error("Failed to send metrics: ", err)
 		return
 	}
 
 	if anodotResponse != nil && anodotResponse.HasErrors() {
 		anodotSubmitterErrors.WithLabelValues(metricsSubmitter.AnodotURL().Host).Inc()
-		log.Println("[ERROR] anodot api error : ", err)
+		log.Error("Anodot server returned error:", anodotResponse.ErrorMessage())
 		return
 	}
 

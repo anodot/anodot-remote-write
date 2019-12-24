@@ -33,9 +33,17 @@ make test
 
 # Deploying application application
 
+Optional Configuration options. Should be specified under `configuration.env` section in values.yaml
+
+| Env variable                | Description                                                                   | Default       | 
+| ----------------------------|-------------------------------------------------------------------------------| --------------|
+| ANODOT_LOG_LEVEL            | Application log level. Supported options are: `panic, fatal, error, warning, info, debug, trace`| info          |
+| ANODOT_TAGS                 | Format `TAG1=VALUE1;TAG2=VALUE2` Static tags that will be added to Anodot |["source":"prometheus-remote-write"]|
+| ANODOT_HTTP_DEBUG_ENABLED   | Should be used to enable HTTP requests/response dumps to stdout |false|
+
 ## Prerequisites
 - Docker 1.18ce.
-- Prometheus Server on K8s cluster.
+- Prometheus Server
 
 ### Using helm
 
@@ -87,8 +95,14 @@ metadata:
     app: prometheus-operator-prometheus
   name: prometheus
 spec:
-  remoteWrite:
-  - url: "http://anodot-prometheus-remote-write:1234/receive"
+    remoteWrite:
+     - url: http://anodot-prometheus-remote-write:1234/receive
+     #  writeRelabelConfigs:
+     #    - action: drop
+     #      regex: '(apiserver_request_count|prometheus_remote_storage_sent_batch_duration_seconds_bucket)'
+     #      sourceLabels: [__name__]
+       queueConfig:
+         maxSamplesPerSend: 1000
   version: v2.10.0
 ```
 

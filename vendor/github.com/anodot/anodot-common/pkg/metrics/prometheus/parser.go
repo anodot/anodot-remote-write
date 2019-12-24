@@ -9,7 +9,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/common/model"
-	"log"
 	"math"
 	"sort"
 	"strings"
@@ -35,16 +34,20 @@ var (
 type AnodotParser struct {
 	FilterOutProperties map[string]string `json:"fop"`
 	FilterInProperties  map[string]string `json:"fip"`
+
+	// Anodot Metrics tags that will be assigned to all metrics.
+	// https://support.anodot.com/hc/en-us/articles/360020259354-Posting-2-0-Metrics-
+	Tags map[string]string
 }
 
 const (
 	symbols    = "(){},=.'\"\\"
-	printables = ("0123456789abcdefghijklmnopqrstuvwxyz" +
+	printables = "0123456789abcdefghijklmnopqrstuvwxyz" +
 		"ABCDEFGHIJKLMNOPQRSTUVWXYZ" +
-		"!\"#$%&\\'()*+,-./:;<=>?@[\\]^_`{|}~")
+		"!\"#$%&\\'()*+,-./:;<=>?@[\\]^_`{|}~"
 )
 
-func NewAnodotParser(filterIn *string, filterOut *string) (*AnodotParser, error) {
+func NewAnodotParser(filterIn *string, filterOut *string, tags map[string]string) (*AnodotParser, error) {
 
 	var parser AnodotParser
 
@@ -60,6 +63,11 @@ func NewAnodotParser(filterIn *string, filterOut *string) (*AnodotParser, error)
 		if err != nil {
 			return nil, errors.New("failed to parse filterOut expression")
 		}
+	}
+
+	parser.Tags = tags
+	if parser.Tags == nil {
+		parser.Tags = map[string]string{}
 	}
 	return &parser, nil
 }
@@ -129,12 +137,10 @@ func (p *AnodotParser) ParsePrometheusRequest(samples model.Samples) []metrics.A
 
 		if math.IsNaN(metric.Value) || math.IsInf(metric.Value, 0) {
 			incorrectValue.Inc()
-			log.Println(fmt.Sprintf("[WARNING]: Metrics value is not acceptable. %s", r))
 			continue
 		}
 
 		if len(r.Metric) > maxNumberOfProperties {
-			log.Println(fmt.Sprintf("[WARNING]: Metric is skipped. Numer of lables is more that allowed(%d). %s", maxNumberOfProperties, r))
 			metricsPropertiesSizeExceeded.Inc()
 			continue
 		}
@@ -145,6 +151,8 @@ func (p *AnodotParser) ParsePrometheusRequest(samples model.Samples) []metrics.A
 		}
 		sort.Sort(labels)
 		metric.Properties = make(map[string]string)
+		metric.Tags = p.Tags
+
 		for _, l := range labels {
 
 			v := r.Metric[l]
@@ -159,8 +167,6 @@ func (p *AnodotParser) ParsePrometheusRequest(samples model.Samples) []metrics.A
 
 			if l == model.MetricNameLabel {
 				metric.Properties["what"] = p.escape(v)
-				metric.Tags = make(map[string]string)
-
 				//Should be managed on prometheus config
 				/*if strings.HasSuffix(metric.Properties[WHAT_PROPERTY],"_total") {
 					metric.Properties[TARGET_TYPE] = COUNTER

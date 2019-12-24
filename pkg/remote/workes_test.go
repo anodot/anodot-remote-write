@@ -27,8 +27,11 @@ func TestMetricsSizeAboveBuffer(t *testing.T) {
 		return nil, nil
 	}}
 
-	worker := NewWorker(0, false)
-	worker.Do(randomMetrics(reqSize), mockSubmitter)
+	worker, err := NewWorker(mockSubmitter, 0, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	worker.Do(randomMetrics(reqSize))
 }
 
 func TestMetricsShouldBeBuffered(t *testing.T) {
@@ -61,10 +64,12 @@ func TestMetricsShouldBeBuffered(t *testing.T) {
 		}}},
 	}
 
-	worker := NewWorker(0, false)
-
 	for _, data := range testData {
-		worker.Do(randomMetrics(data.metricsSize), &data.MockSubmitter)
+		worker, err := NewWorker(data.MockSubmitter, 0, false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		worker.Do(randomMetrics(data.metricsSize))
 	}
 }
 
@@ -77,8 +82,11 @@ func TestNoMetricsSendInDebugMode(t *testing.T) {
 		return nil, nil
 	}}
 
-	worker := NewWorker(0, true)
-	worker.Do(randomMetrics(reqSize), mockSubmitter)
+	worker, err := NewWorker(mockSubmitter, 0, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	worker.Do(randomMetrics(reqSize))
 }
 
 type MockSubmitter struct {
@@ -102,4 +110,27 @@ func randomMetrics(size int) []metrics.Anodot20Metric {
 	}
 
 	return data
+}
+
+func TestSlice(t *testing.T) {
+	a := []string{"1", "2", "3", "4", "5", "6", "7", "8", "9", "10"}
+	b := make([]string, 0, 5)
+
+	fmt.Println(b)
+	fmt.Println(len(b))
+	fmt.Println(cap(b))
+
+	copy(b, a[0:5])
+	a = append(a[:0], a[5:]...)
+	a = append(a, "11")
+	a = append(a, "12")
+
+	fmt.Println(a)
+	fmt.Println(len(a))
+	fmt.Println(cap(a))
+
+	fmt.Println(b)
+	fmt.Println(len(b))
+	fmt.Println(cap(b))
+
 }

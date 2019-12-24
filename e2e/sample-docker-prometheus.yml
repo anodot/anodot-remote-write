@@ -5,9 +5,11 @@ global:
 remote_write:
   - url: "http://remote-write:1234/receive"
     write_relabel_configs:
-      - source_labels: [ __name__ ]
-        regex: 'exported_http_requests_total|exported_version'
+      - source_labels: [anodot_include]
+        regex: 'true'
         action: keep
+      - regex: 'anodot_include'
+        action: labeldrop
     queue_config:
       batch_send_deadline: 1s
 
@@ -17,3 +19,9 @@ scrape_configs:
 
     static_configs:
       - targets: ['anodot-metrics-stub:8080']
+
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: '(exported_http_requests_total|exported_version)'
+        replacement: 'true'
+        target_label: 'anodot_include'

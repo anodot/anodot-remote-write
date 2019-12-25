@@ -93,7 +93,7 @@ func NewAnodot20Submitter(anodotURL string, apiToken string, httpClient *http.Cl
 	if httpClient == nil {
 		client := http.Client{Timeout: 30 * time.Second}
 
-		debugHTTP, _ := strconv.ParseBool(os.Getenv("ANODOT_HTTP_DEBUG_ENABLED"))
+		debugHTTP, _ := strconv.ParseBool(os.Getenv("ANODOT_HTTP_DEBUG"))
 		if debugHTTP {
 			client.Transport = &debugHTTPTransport{r: http.DefaultTransport}
 		}

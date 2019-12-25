@@ -3,10 +3,14 @@ package remote
 import (
 	"fmt"
 	"github.com/anodot/anodot-common/pkg/metrics"
+	"github.com/prometheus/client_golang/prometheus/testutil"
+
 	"io/ioutil"
 	"log"
 	"net/url"
+	"os"
 	"sort"
+	"strconv"
 	"testing"
 	"time"
 )
@@ -31,15 +35,15 @@ func TestMetricsShouldBeBuffered(t *testing.T) {
 	}
 
 	//nothing should be send here, only saved in buffer
-	metrics := randomMetrics(2000)
+	allMetrics := randomMetrics(2000)
 
-	worker.Do(metrics[0:100])
+	worker.Do(allMetrics[0:100])
 	if len(worker.MetricsBuffer) != 100 {
 		t.Fatal("metrics should be saved in buffer")
 	}
 
 	//nothing should be send here, only saved in buffer
-	worker.Do(metrics[100:900])
+	worker.Do(allMetrics[100:900])
 	if len(worker.MetricsBuffer) != 900 {
 		t.Fatal("metrics should be saved in buffer")
 	}
@@ -49,7 +53,7 @@ func TestMetricsShouldBeBuffered(t *testing.T) {
 	}
 
 	// 1000 metrics should be sent, so 100+800+600-1000=500
-	worker.Do(metrics[900:1500])
+	worker.Do(allMetrics[900:1500])
 	if len(worker.MetricsBuffer) != 500 {
 		t.Fatal("metrics should be saved in buffer")
 	}
@@ -57,11 +61,10 @@ func TestMetricsShouldBeBuffered(t *testing.T) {
 		t.Fatal("metrics in buffer should be sorted by time ASC")
 	}
 
-	worker.Do(metrics[1500:2000])
+	worker.Do(allMetrics[1500:2000])
 	if len(worker.MetricsBuffer) != 0 {
 		t.Fatal("metrics should be saved in buffer")
 	}
-
 }
 
 type byTimestamp []metrics.Anodot20Metric
@@ -74,6 +77,139 @@ func (s byTimestamp) Swap(i, j int) {
 }
 func (s byTimestamp) Less(i, j int) bool {
 	return s[i].Timestamp.UnixNano() <= s[j].Timestamp.UnixNano()
+}
+
+func TestToString(t *testing.T) {
+	anodot20Submitter, e := metrics.NewAnodot20Submitter("http://localhost:8080", "123", nil)
+	if e != nil {
+		t.Fatal(e)
+	}
+
+	worker, e := NewWorker(anodot20Submitter, 20, false)
+	if e != nil {
+		t.Fatal(e)
+	}
+
+	expectedRes := "Anodot URL='localhost:8080'"
+	if worker.String() != expectedRes {
+		t.Fatal(fmt.Sprintf("Wrong String() result\n got: %q\n want: %q", worker.String(), expectedRes))
+	}
+}
+
+func TestMetricsPerRequestEnvConfigurationIncorrect(t *testing.T) {
+
+	var envConfig = []struct {
+		envValue string
+		isValid  bool
+	}{
+		{"", false},
+		{" ", false},
+		{"asd", false},
+		{"-10", false},
+		{"500", true},
+	}
+
+	for _, v := range envConfig {
+		t.Run(fmt.Sprintf("ANODOT_METRICS_PER_REQUEST_SIZE is %q", v.envValue),
+			func(t *testing.T) {
+
+				err := os.Setenv("ANODOT_METRICS_PER_REQUEST_SIZE", v.envValue)
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				worker, e := NewWorker(MockSubmitter{}, 20, false)
+				if e != nil {
+					t.Fatal(e)
+				}
+
+				if v.isValid {
+					n, _ := strconv.Atoi(v.envValue)
+					if worker.metricsPerRequest != n {
+						t.Fatal(fmt.Sprintf("Wrong metricsPerRequest size \n got: %d\n want: %d", worker.metricsPerRequest, 1000))
+					}
+				} else {
+					//should fallback to default value
+					if worker.metricsPerRequest != 1000 {
+						t.Fatal(fmt.Sprintf("Wrong default metricsPerRequest size \n got: %d\n want: %d", worker.metricsPerRequest, 1000))
+					}
+				}
+			})
+	}
+}
+
+func TestNewWorkerSubmitterNil(t *testing.T) {
+	worker, err := NewWorker(nil, 300, false)
+
+	if worker != nil {
+		t.Fatalf("worker should be nill")
+	}
+
+	if err.Error() != "metrics submitter should not be nil" {
+		t.Fatal(fmt.Sprintf("Wrong error message \n got: %q\n want: %q", err.Error(), "metrics submitter should not be nil"))
+	}
+}
+
+func TestNewWorkerMaxWorkersNegative(t *testing.T) {
+	worker, err := NewWorker(MockSubmitter{}, -100, false)
+
+	if worker != nil {
+		t.Fatalf("worker should be nill")
+	}
+
+	if err.Error() != "workersLimit should be > 0" {
+		t.Fatal(fmt.Sprintf("Wrong error message \n got: %q\n want: %q", err.Error(), "workersLimit should be > 0"))
+	}
+}
+
+func TestSubmitError(t *testing.T) {
+	anodotSubmitterErrors.Reset()
+	_ = os.Setenv("ANODOT_METRICS_PER_REQUEST_SIZE", "10")
+
+	worker, err := NewWorker(MockSubmitter{f: func(anodot20Metrics []metrics.Anodot20Metric) (response *metrics.AnodotResponse, e error) {
+		return nil, fmt.Errorf("error happened")
+	}}, 0, false)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	worker.Do(randomMetrics(10))
+	v := testutil.ToFloat64(anodotSubmitterErrors)
+	if v != 1 {
+		t.Fatal(fmt.Sprintf("Wrong error counter \n got: %f\n want: %f", v, float64(1)))
+	}
+}
+
+func TestSubmitErrorInReponse(t *testing.T) {
+	anodotSubmitterErrors.Reset()
+
+	_ = os.Setenv("ANODOT_METRICS_PER_REQUEST_SIZE", "10")
+
+	worker, err := NewWorker(MockSubmitter{f: func(anodot20Metrics []metrics.Anodot20Metric) (response *metrics.AnodotResponse, e error) {
+
+		anodotResponse := &metrics.AnodotResponse{
+			HttpResponse: nil,
+		}
+		anodotResponse.Errors = append(anodotResponse.Errors, struct {
+			Description string
+			Error       int64
+			Index       string
+		}{Description: "some text", Error: int64(2), Index: string('3')})
+
+		return anodotResponse, nil
+
+	}}, 0, false)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	worker.Do(randomMetrics(10))
+	v := testutil.ToFloat64(anodotSubmitterErrors)
+	if v != 1 {
+		t.Fatal(fmt.Sprintf("Wrong error counter \n got: %f\n want: %f", v, float64(1)))
+	}
 }
 
 func TestNoMetricsSendInDebugMode(t *testing.T) {

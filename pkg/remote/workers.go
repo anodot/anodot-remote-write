@@ -15,11 +15,11 @@ import (
 	"time"
 )
 
-var metricsPerRequest = 1000
-var maxMetricsBufferSize = 10000
-
 type Worker struct {
 	metricsSubmitter metrics.Submitter
+
+	metricsPerRequest    int //= 1000
+	maxMetricsBufferSize int //= 10000
 
 	Max           int64
 	Current       int64
@@ -76,25 +76,34 @@ func NewWorker(metricsSubmitter metrics.Submitter, workersLimit int64, debug boo
 		return nil, fmt.Errorf("metrics submitter should not be nil")
 	}
 
+	if workersLimit < 0 {
+		return nil, fmt.Errorf("workersLimit should be > 0")
+	}
+
+	worker := &Worker{metricsSubmitter: metricsSubmitter, Max: workersLimit, MetricsBuffer: make([]metrics.Anodot20Metric, 0, 10000), Debug: debug}
+
 	metricsPerRequestStr := os.Getenv("ANODOT_METRICS_PER_REQUEST_SIZE")
 	if len(strings.TrimSpace(metricsPerRequestStr)) != 0 {
 		v, e := strconv.Atoi(metricsPerRequestStr)
 		if e == nil {
-			metricsPerRequest = v
+			worker.metricsPerRequest = v
 		}
 	}
 
-	log.Debug(fmt.Sprintf("Metrics per request size is : %d", metricsPerRequest))
-	log.Debug(fmt.Sprintf("Metrics buffer size is : %d", maxMetricsBufferSize))
+	if worker.metricsPerRequest <= 0 {
+		worker.metricsPerRequest = 1000
+	}
 
-	worker := &Worker{metricsSubmitter: metricsSubmitter, Max: workersLimit, MetricsBuffer: make([]metrics.Anodot20Metric, 0, maxMetricsBufferSize), Current: 0, Debug: debug}
+	log.Debug(fmt.Sprintf("Metrics per request size is : %d", worker.metricsPerRequest))
+	log.Debug(fmt.Sprintf("Metrics buffer size is : %d", worker.maxMetricsBufferSize))
+
 	return worker, nil
 }
 
 var mutex = &sync.Mutex{}
 
 func (w *Worker) Do(data []metrics.Anodot20Metric) {
-	bufferSize.WithLabelValues(w.metricsSubmitter.AnodotURL().Host).Set(float64(maxMetricsBufferSize))
+	bufferSize.WithLabelValues(w.metricsSubmitter.AnodotURL().Host).Set(float64(w.maxMetricsBufferSize))
 
 	mutex.Lock()
 	defer mutex.Unlock()
@@ -112,15 +121,15 @@ func (w *Worker) Do(data []metrics.Anodot20Metric) {
 	bufferedMetrics.WithLabelValues(w.metricsSubmitter.AnodotURL().Host).Set(float64(len(w.MetricsBuffer)))
 
 	log.Debug(fmt.Sprintf("Buffer size is %d", len(w.MetricsBuffer)))
-	if len(w.MetricsBuffer) < metricsPerRequest {
+	if len(w.MetricsBuffer) < w.metricsPerRequest {
 		// need to wait until buffer will have enough elements to send
 		return
 	}
 
-	metricsToSend := make([]metrics.Anodot20Metric, metricsPerRequest)
+	metricsToSend := make([]metrics.Anodot20Metric, w.metricsPerRequest)
 
-	copy(metricsToSend, w.MetricsBuffer[0:metricsPerRequest])
-	w.MetricsBuffer = append(w.MetricsBuffer[:0], w.MetricsBuffer[metricsPerRequest:]...)
+	copy(metricsToSend, w.MetricsBuffer[0:w.metricsPerRequest])
+	w.MetricsBuffer = append(w.MetricsBuffer[:0], w.MetricsBuffer[w.metricsPerRequest:]...)
 	bufferedMetrics.WithLabelValues(w.metricsSubmitter.AnodotURL().Host).Set(float64(len(w.MetricsBuffer)))
 
 	concurrentWorkers.WithLabelValues(w.metricsSubmitter.AnodotURL().Host).Set(float64(w.Current))

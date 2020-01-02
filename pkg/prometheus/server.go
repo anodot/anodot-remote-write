@@ -2,7 +2,6 @@ package prometheus
 
 import (
 	"fmt"
-	anodotProm "github.com/anodot/anodot-common/pkg/metrics/prometheus"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/anodot/anodot-remote-write/pkg/remote"
@@ -18,9 +17,12 @@ import (
 	"net/http"
 )
 
+const RECEIVER_ENDPOINT = "/receive"
+const HEALTH_ENDPOINT = "/health"
+
 type Receiver struct {
 	Port   int
-	Parser *anodotProm.AnodotParser
+	Parser *AnodotParser
 }
 
 var (
@@ -39,9 +41,6 @@ var (
 		Help: "Build info",
 	}, []string{"version", "git_sha1"})
 )
-
-const RECEIVER_ENDPOINT = "/receive"
-const HEALTH_ENDPOINT = "/health"
 
 func (rc *Receiver) protoToSamples(req *prompb.WriteRequest) model.Samples {
 	var samples model.Samples

@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	metrics2 "github.com/anodot/anodot-common/pkg/metrics"
-	anodotPrometheus "github.com/anodot/anodot-common/pkg/metrics/prometheus"
 	"net/url"
 	"os"
 	"strings"
@@ -68,13 +67,13 @@ func main() {
 			log.Fatalf("Failed to construct anodot server url with host=%q and port=%q. Error:%s", *murl, *mport, err.Error())
 		}
 
-		mirrorSubmitter, err = metrics2.NewAnodot20Submitter(mirrorURL.String(), *mtoken, nil)
+		mirrorSubmitter, err = metrics2.NewAnodot20Client(mirrorURL.String(), *mtoken, nil)
 		if err != nil {
 			log.Fatalf("Failed to create mirror submitter: %s", err.Error())
 		}
 	}
 
-	parser, err := anodotPrometheus.NewAnodotParser(filterIn, filterOut, tags(os.Getenv("ANODOT_TAGS")))
+	parser, err := prometheus.NewAnodotParser(filterIn, filterOut, tags(os.Getenv("ANODOT_TAGS")))
 	if err != nil {
 		log.Fatalf("Failed to initialize anodot parser. Error: %s", err.Error())
 	}
@@ -84,7 +83,7 @@ func main() {
 		log.Fatalf("Failed to construct anodot server url with host=%q and port=%q. Error:%s", *serverUrl, *port, err.Error())
 	}
 
-	primarySubmitter, err := metrics2.NewAnodot20Submitter(primaryUrl.String(), *token, nil)
+	primarySubmitter, err := metrics2.NewAnodot20Client(primaryUrl.String(), *token, nil)
 	if err != nil {
 		log.Fatalf("Failed to create Anodot metrics submitter: %s", err.Error())
 	}

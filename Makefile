@@ -1,4 +1,5 @@
 GO := go
+HELM:=helm
 GOFLAGS=-mod=vendor
 
 GOARCH := amd64
@@ -49,19 +50,19 @@ build-container: build
 	@echo ">> created docker image $(DOCKER_IMAGE_NAME):$(VERSION)"
 
 build-charts:
-	helm init --client-only
-	helm version --client
-	@helm plugin install https://github.com/instrumenta/helm-kubeval || echo "Skipping error..."
+	$(HELM) init --client-only
+	$(HELM) version --client
+	@$(HELM) plugin install https://github.com/instrumenta/helm-kubeval || echo "Skipping error..."
 	./utils/kubeval.sh
-	helm lint deployment/helm/*
-	helm package deployment/helm/*
+	$(HELM) lint deployment/helm/*
+	$(HELM) package deployment/helm/*
 
 test:
 	GOFLAGS=$(GOFLAGS) $(GO) test -v -race -coverprofile=coverage.txt -covermode=atomic -timeout 10s ./pkg/...
 
 test-container: build-container
 	@docker rm -f $(APPLICATION_NAME) || true
-	@docker run -d -P --name=$(APPLICATION_NAME) $(DOCKER_IMAGE_NAME):$(VERSION) --token abc --url http://localhost:9090
+	@docker run -d -P --name=$(APPLICATION_NAME) $(DOCKER_IMAGE_NAME):$(VERSION) --token abc --url http://localhost
 	docker ps
 	set -x curl --connect-timeout 5 --max-time 10 --retry 5 --retry-delay 0 --retry-max-time 40 -I http://localhost:$$(docker port $(APPLICATION_NAME) | grep -o '[0-9]*$$' )/health
 

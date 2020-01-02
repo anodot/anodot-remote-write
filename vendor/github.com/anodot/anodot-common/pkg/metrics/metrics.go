@@ -9,10 +9,24 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"io/ioutil"
 	"net/http"
+	"net/http/httputil"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"time"
+)
+
+var (
+	httpTimeout = promauto.NewGauge(prometheus.GaugeOpts{
+		Name: "anodot_server_http_timeout_seconds",
+		Help: "Metrics submitter client http timeout seconds",
+	})
+
+	anoServerhttpReponses = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "anodot_server_http_responses_total",
+		Help: "Total number of HTTP responses of Anodot server",
+	}, []string{"server", "response_code"})
 )
 
 type AnodotTimestamp struct {
@@ -64,13 +78,6 @@ func (r *AnodotResponse) ErrorMessage() string {
 	return fmt.Sprintf("%+v\n", r.Errors)
 }
 
-var (
-	anoServerhttpReponses = promauto.NewCounterVec(prometheus.CounterOpts{
-		Name: "anodot_server_http_responses_total",
-		Help: "Total number of HTTP responses of Anodot server",
-	}, []string{"server", "response_code"})
-)
-
 //Constructs new Anodot 2.0 submitter which should be used to send metrics to Anodot.
 func NewAnodot20Submitter(anodotURL string, apiToken string, httpClient *http.Client) (*Anodot20Submitter, error) {
 	parsedUrl, err := url.Parse(anodotURL)
@@ -84,9 +91,16 @@ func NewAnodot20Submitter(anodotURL string, apiToken string, httpClient *http.Cl
 
 	submitter := Anodot20Submitter{Token: apiToken, ServerURL: parsedUrl, client: httpClient}
 	if httpClient == nil {
-		//TODO somehow add debug info
-		submitter.client = &http.Client{Timeout: 30 * time.Second}
+		client := http.Client{Timeout: 30 * time.Second}
+
+		debugHTTP, _ := strconv.ParseBool(os.Getenv("ANODOT_HTTP_DEBUG"))
+		if debugHTTP {
+			client.Transport = &debugHTTPTransport{r: http.DefaultTransport}
+		}
+		submitter.client = &client
 	}
+
+	httpTimeout.Set(submitter.client.Timeout.Seconds())
 
 	return &submitter, nil
 }
@@ -139,4 +153,17 @@ func (s *Anodot20Submitter) SubmitMetrics(metrics []Anodot20Metric) (*AnodotResp
 
 func (s *Anodot20Submitter) AnodotURL() *url.URL {
 	return s.ServerURL
+}
+
+type debugHTTPTransport struct {
+	r http.RoundTripper
+}
+
+func (d *debugHTTPTransport) RoundTrip(h *http.Request) (*http.Response, error) {
+	dump, _ := httputil.DumpRequestOut(h, true)
+	fmt.Printf("****REQUEST****\n%q\n", string(dump))
+	resp, err := d.r.RoundTrip(h)
+	dump, _ = httputil.DumpResponse(resp, true)
+	fmt.Printf("****RESPONSE****\n%q\n****************\n\n", string(dump))
+	return resp, err
 }

@@ -23,8 +23,7 @@ type Metrics struct {
 	Properties map[string]string `json:"properties"`
 	Timestamp  float64           `json:"timestamp"`
 	Value      float64           `json:"value"`
-	Tags       struct {
-	} `json:"tags"`
+	Tags       map[string]string `json:"tags"`
 }
 
 func TestMain(m *testing.M) {
@@ -54,6 +53,11 @@ INFINITE_LOOP:
 	for {
 		samples, err := metrics("http://localhost:1234/metrics", 3, 1*time.Second)
 		if err != nil {
+			out, err = shellCommand("docker-compose", "logs")
+			log.Println(string(out))
+			if err != nil {
+				log.Fatal("Failed to execute docker-compose command", err)
+			}
 			log.Fatal("Failed to get metrics:", err)
 		}
 
@@ -198,6 +202,10 @@ func TestMetricsData(t *testing.T) {
 		t.Fatal("Number of metrics does not match")
 	}
 
+	expectedTags := map[string]string{
+		"source": "prometheus-remote-write",
+	}
+
 	for _, m := range metrics {
 		what := m.Properties["what"]
 		switch what {
@@ -220,6 +228,11 @@ func TestMetricsData(t *testing.T) {
 			if !reflect.DeepEqual(m.Properties, expectedProperties) {
 				t.Fatal(fmt.Sprintf("Not equal properties.\n Got %v\n, want %v", m.Properties, expectedProperties))
 			}
+
+			if !reflect.DeepEqual(m.Tags, expectedTags) {
+				t.Fatal(fmt.Sprintf("Not equal tags.\n Got %v\n, want %v", m.Tags, expectedTags))
+			}
+
 		case "exported_version":
 			expectedProperties := map[string]string{
 				"instance": "anodot-metrics-stub:8080",
@@ -236,6 +249,10 @@ func TestMetricsData(t *testing.T) {
 
 			if !reflect.DeepEqual(m.Properties, expectedProperties) {
 				t.Fatal(fmt.Sprintf("Not equal properties.\n Got %v\n want %v", m.Properties, expectedProperties))
+			}
+
+			if !reflect.DeepEqual(m.Tags, expectedTags) {
+				t.Fatal(fmt.Sprintf("Not equal tags.\n Got %v\n, want %v", m.Tags, expectedTags))
 			}
 
 		default:

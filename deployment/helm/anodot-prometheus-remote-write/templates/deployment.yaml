@@ -22,10 +22,18 @@ spec:
       labels:
         app: {{ template "template_name" . }}
         release: {{ .Release.Name }}
+      annotations:
+        prometheus.io/scrape: 'true'
+        prometheus.io/port: '1234'
     spec:
       containers:
         - name: {{ template "template_name" . }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          env:
+{{- range $name, $value := .Values.configuration.env }}
+            - name: "{{ $name }}"
+              value: "{{ $value }}"
+{{- end }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           args:
             {{  range .Values.configuration.args }}

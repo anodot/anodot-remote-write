@@ -13,7 +13,7 @@ services:
       ANODOT_API_TOKEN: "123456"
 
   prometheus:
-    image: prom/prometheus:v2.13.1
+    image: prom/prometheus:latest
     depends_on:
       - remote-write
     ports:
@@ -22,7 +22,7 @@ services:
       - ./sample-docker-prometheus.yml:/etc/prometheus/prometheus.yml:ro
 
   remote-write:
-    image: anodot/prometheus-remote-write:1.4.0
+    image: anodot/prometheus-remote-write:1.5.0
     container_name: anodot-prometheus-remote-write
     depends_on:
       - anodot-metrics-stub
@@ -31,4 +31,5 @@ services:
       - "1234:1234"
     command: ["-url=http://anodot-metrics-stub","--port=8080","-token=123456","-workers=20"]
     environment:
-      ANODOT_METRICS_BUFFER_SIZE: 4
+      ANODOT_METRICS_PER_REQUEST_SIZE: 4
+      ANODOT_LOG_LEVEL: "trace"

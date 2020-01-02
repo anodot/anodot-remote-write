@@ -237,7 +237,7 @@ func TestMetricsData(t *testing.T) {
 			expectedProperties := map[string]string{
 				"instance": "anodot-metrics-stub:8080",
 				"job":      "test-app",
-				"version":  "v0%2E1%2E0",
+				"version":  "v0_1_0",
 				"what":     "exported_version",
 			}
 

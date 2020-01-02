@@ -2,7 +2,6 @@ package prometheus
 
 import (
 	"fmt"
-	anodotProm "github.com/anodot/anodot-common/pkg/metrics/prometheus"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/anodot/anodot-remote-write/pkg/remote"
@@ -20,7 +19,7 @@ import (
 
 type Receiver struct {
 	Port   int
-	Parser *anodotProm.AnodotParser
+	Parser *AnodotParser
 }
 
 var (

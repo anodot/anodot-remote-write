@@ -29,7 +29,6 @@ const (
 	DEFAULT_PORT              = 1234
 	DEFAULT_NUMBER_OF_WORKERS = 20
 	DEFAULT_TOKEN             = ""
-	DEFAULT_ANODOT_PORT       = "443"
 	DEFAULT_ANODOT_URL        = "https://api.anodot.com"
 )
 
@@ -62,7 +61,7 @@ func main() {
 
 		mirrorURL, err := url.Parse(*murl)
 		if err != nil {
-			log.Fatalf("Failed to construct anodot server url with url=%q and port=%q. Error:%s", *murl, err.Error())
+			log.Fatalf("Failed to construct anodot server url with url=%q. Error:%s", *murl, err.Error())
 		}
 
 		mirrorSubmitter, err = metrics2.NewAnodot20Client(mirrorURL.String(), *mtoken, nil)

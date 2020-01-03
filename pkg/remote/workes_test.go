@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"github.com/anodot/anodot-common/pkg/metrics"
 	"github.com/prometheus/client_golang/prometheus/testutil"
+	"net/http"
+	"strings"
 
 	"io/ioutil"
 	"log"
@@ -167,7 +169,10 @@ func TestSubmitError(t *testing.T) {
 	_ = os.Setenv("ANODOT_METRICS_PER_REQUEST_SIZE", "10")
 
 	worker, err := NewWorker(MockSubmitter{f: func(anodot20Metrics []metrics.Anodot20Metric) (response metrics.AnodotResponse, e error) {
-		return nil, fmt.Errorf("error happened")
+		return &metrics.CreateResponse{
+			Errors:       nil,
+			HttpResponse: &http.Response{StatusCode: 500},
+		}, fmt.Errorf("error happened")
 	}}, 0, false)
 
 	if err != nil {
@@ -179,6 +184,22 @@ func TestSubmitError(t *testing.T) {
 	if v != 1 {
 		t.Fatal(fmt.Sprintf("Wrong error counter \n got: %f\n want: %f", v, float64(1)))
 	}
+
+	const metadata = `
+        # HELP anodot_server_http_responses_total Total number of HTTP responses of Anodot server
+        # TYPE anodot_server_http_responses_total counter
+	`
+
+	expected := `
+
+		anodot_server_http_responses_total{anodot_url="127.0.0.1",response_code="500"} 1
+	`
+
+	err = testutil.CollectAndCompare(serverHTTPResponses, strings.NewReader(metadata+expected), "anodot_server_http_responses_total")
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
 }
 
 func TestSubmitErrorInReponse(t *testing.T) {

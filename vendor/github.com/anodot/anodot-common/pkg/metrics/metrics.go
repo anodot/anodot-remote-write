@@ -57,6 +57,8 @@ func (m *Anodot20Metric) MarshalJSON() ([]byte, error) {
 
 func escape(s string) string {
 	result := strings.ReplaceAll(s, ".", "_")
+	result = strings.ReplaceAll(result, "=", "_")
+
 	return strings.ReplaceAll(result, " ", "_")
 }
 

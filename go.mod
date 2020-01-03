@@ -3,7 +3,7 @@ module github.com/anodot/anodot-remote-write
 go 1.12
 
 require (
-	github.com/anodot/anodot-common v0.0.5
+	github.com/anodot/anodot-common v0.0.6
 	github.com/gogo/protobuf v1.2.1 // indirect
 	github.com/golang/protobuf v1.3.2
 	github.com/golang/snappy v0.0.1

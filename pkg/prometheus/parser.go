@@ -8,13 +8,14 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/common/model"
-	"log"
+	log "github.com/sirupsen/logrus"
 	"math"
 	"sort"
 )
 
 const (
 	maxPropertyLength     = 150
+	maxKeyLength          = 50
 	maxNumberOfProperties = 20
 )
 
@@ -99,13 +100,14 @@ func (p *AnodotParser) ParsePrometheusRequest(samples model.Samples) []metrics.A
 		metric.Value = float64(r.Value)
 
 		if math.IsNaN(metric.Value) || math.IsInf(metric.Value, 0) {
+			log.Trace(fmt.Sprintf("'%s' skipped. Nan and Inf values are ignored", r.Metric.String()))
 			incorrectValue.Inc()
 			continue
 		}
 
 		if len(r.Metric) > maxNumberOfProperties {
 			metricsPropertiesSizeExceeded.Inc()
-			log.Println(fmt.Sprintf("[WARNING]: Metric is skipped. Numer of lables=%d is more that allowed(%d). %s", len(r.Metric), maxNumberOfProperties, r))
+			log.Debug(fmt.Sprintf("Metric is skipped. Numer of lables=%d is more that allowed(%d). %s", len(r.Metric), maxNumberOfProperties, r))
 			continue
 		}
 
@@ -125,8 +127,12 @@ func (p *AnodotParser) ParsePrometheusRequest(samples model.Samples) []metrics.A
 				continue
 			}
 
-			if len(l) >= maxPropertyLength {
-				l = l[:maxPropertyLength]
+			if len(l) >= maxKeyLength {
+				l = l[:maxKeyLength]
+			}
+
+			if len(v) >= maxPropertyLength {
+				v = v[:maxPropertyLength]
 			}
 
 			if l == model.MetricNameLabel {

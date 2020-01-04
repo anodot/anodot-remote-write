@@ -15,8 +15,8 @@ PREVIOUS_VERSION := $(shell git show HEAD:pkg/version/version.go | grep 'VERSION
 GIT_COMMIT := $(shell git describe --dirty --always)
 
 all: clean format vet test build build-container test-container
-publish-container: clean format vet build-charts test build build-container test-container push-container
-lint: check-formatting errorcheck vet build-charts
+publish-container: clean format vet test build build-container test-container push-container
+lint: check-formatting errorcheck vet
 test-all: test build build-container test-container
 
 clean:

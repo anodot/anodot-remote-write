@@ -22,7 +22,6 @@ test-all: test build build-container test-container
 clean:
 	@rm -rf $(APPLICATION_NAME)
 	docker rmi -f `docker images $(DOCKER_IMAGE_NAME):$(VERSION) -a -q` || true
-	rm -rf anodot-prometheus-remote-write-$(VERSION).tgz
 
 check-formatting:
 	./utils/check_if_formatted.sh

@@ -9,6 +9,34 @@ import (
 	"testing"
 )
 
+func TestTags(t *testing.T) {
+	samples := model.Samples{
+		{
+			Metric: model.Metric{
+				model.MetricNameLabel: "with_tags",
+			},
+			Timestamp: model.Time(1574693483),
+			Value:     1,
+		},
+	}
+
+	parser, err := NewAnodotParser(nil, nil, map[string]string{"key": "value"})
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	metrics := parser.ParsePrometheusRequest(samples)
+	if len(metrics) != 1 {
+		t.Fatalf("unexpected number of metrics")
+	}
+
+	for _, m := range metrics {
+		if !(m.Tags["key"] == "value") {
+			t.Fatalf("tags should be set correctly")
+		}
+	}
+}
+
 func TestConstructorFilterIn(t *testing.T) {
 	s := "invalid_json"
 	_, err := NewAnodotParser(&s, nil, nil)

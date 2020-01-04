@@ -18,8 +18,7 @@ import (
 type Worker struct {
 	metricsSubmitter metrics.Submitter
 
-	metricsPerRequest    int //= 1000
-	maxMetricsBufferSize int //= 10000
+	metricsPerRequest int
 
 	Max           int64
 	Current       int64
@@ -85,7 +84,7 @@ func NewWorker(metricsSubmitter metrics.Submitter, workersLimit int64, debug boo
 		return nil, fmt.Errorf("workersLimit should be > 0")
 	}
 
-	worker := &Worker{metricsSubmitter: metricsSubmitter, Max: workersLimit, MetricsBuffer: make([]metrics.Anodot20Metric, 0, 10000), Debug: debug}
+	worker := &Worker{metricsSubmitter: metricsSubmitter, Max: workersLimit, MetricsBuffer: make([]metrics.Anodot20Metric, 0, 100000), Debug: debug}
 
 	metricsPerRequestStr := os.Getenv("ANODOT_METRICS_PER_REQUEST_SIZE")
 	if len(strings.TrimSpace(metricsPerRequestStr)) != 0 {
@@ -100,9 +99,9 @@ func NewWorker(metricsSubmitter metrics.Submitter, workersLimit int64, debug boo
 	}
 
 	log.Debug(fmt.Sprintf("Metrics per request size is : %d", worker.metricsPerRequest))
-	log.Debug(fmt.Sprintf("Metrics buffer size is : %d", worker.maxMetricsBufferSize))
+	log.Debug(fmt.Sprintf("Metrics buffer size is : %d", len(worker.MetricsBuffer)))
 
-	bufferSize.WithLabelValues(worker.metricsSubmitter.AnodotURL().Host).Set(float64(worker.maxMetricsBufferSize))
+	bufferSize.WithLabelValues(worker.metricsSubmitter.AnodotURL().Host).Set(float64(len(worker.MetricsBuffer)))
 
 	return worker, nil
 }

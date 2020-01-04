@@ -70,7 +70,9 @@ func main() {
 		}
 	}
 
-	parser, err := prometheus.NewAnodotParser(filterIn, filterOut, tags(os.Getenv("ANODOT_TAGS")))
+	tags := tags(os.Getenv("ANODOT_TAGS"))
+	log.Debug("Metric tags: ", tags)
+	parser, err := prometheus.NewAnodotParser(filterIn, filterOut, tags)
 	if err != nil {
 		log.Fatalf("Failed to initialize anodot parser. Error: %s", err.Error())
 	}

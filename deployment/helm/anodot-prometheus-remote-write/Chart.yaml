@@ -1,5 +1,0 @@
-apiVersion: v1
-name: anodot-prometheus-remote-write
-version: "1.1.0"
-description: Anodot Prometheus remote write. Used to push Prometheus to Anodot system.
-appVersion: "2.0.0"

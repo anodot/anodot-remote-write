@@ -1,5 +1,4 @@
 GO := go
-HELM:=helm
 GOFLAGS=-mod=vendor
 
 GOARCH := amd64
@@ -15,15 +14,14 @@ VERSION := $(shell grep 'VERSION' pkg/version/version.go | awk '{ print $$4 }' |
 PREVIOUS_VERSION := $(shell git show HEAD:pkg/version/version.go | grep 'VERSION' | awk '{ print $$4 }' | tr -d '"' )
 GIT_COMMIT := $(shell git describe --dirty --always)
 
-all: clean format vet build-charts test build build-container test-container
-publish-container: clean format vet build-charts test build build-container test-container push-container
-lint: check-formatting errorcheck vet build-charts
+all: clean format vet test build build-container test-container
+publish-container: clean format vet test build build-container test-container push-container
+lint: check-formatting errorcheck vet
 test-all: test build build-container test-container
 
 clean:
 	@rm -rf $(APPLICATION_NAME)
 	docker rmi -f `docker images $(DOCKER_IMAGE_NAME):$(VERSION) -a -q` || true
-	rm -rf anodot-prometheus-remote-write-$(VERSION).tgz
 
 check-formatting:
 	./utils/check_if_formatted.sh
@@ -49,14 +47,6 @@ build-container: build
 	docker build -t $(DOCKER_IMAGE_NAME):$(VERSION) .
 	@echo ">> created docker image $(DOCKER_IMAGE_NAME):$(VERSION)"
 
-build-charts:
-	$(HELM) init --client-only
-	$(HELM) version --client
-	@$(HELM) plugin install https://github.com/instrumenta/helm-kubeval || echo "Skipping error..."
-	./utils/kubeval.sh
-	$(HELM) lint deployment/helm/*
-	$(HELM) package deployment/helm/*
-
 test:
 	GOFLAGS=$(GOFLAGS) $(GO) test -v -race -coverprofile=coverage.txt -covermode=atomic -timeout 10s ./pkg/...
 
@@ -79,9 +69,7 @@ dockerhub-login:
 	docker login -u $(DOCKER_USERNAME) -p $(DOCKER_PASSWORD)
 
 version-set:
-	@sed -i '' 's/tag: "$(PREVIOUS_VERSION)"/tag: "$(VERSION)"/g' deployment/helm/anodot-prometheus-remote-write/values.yaml && \
-	sed -i '' 's/appVersion: "$(PREVIOUS_VERSION)"/appVersion: "$(VERSION)"/g' deployment/helm/anodot-prometheus-remote-write/Chart.yaml && \
-	sed -i '' 's#$(DOCKER_IMAGE_NAME):$(PREVIOUS_VERSION)#$(DOCKER_IMAGE_NAME):$(VERSION)#g' deployment/docker-compose/docker-compose.yaml && \
+	@sed -i '' 's#$(DOCKER_IMAGE_NAME):$(PREVIOUS_VERSION)#$(DOCKER_IMAGE_NAME):$(VERSION)#g' deployment/docker-compose/docker-compose.yaml && \
 	sed -i '' 's#$(DOCKER_IMAGE_NAME):$(PREVIOUS_VERSION)#$(DOCKER_IMAGE_NAME):$(VERSION)#g' e2e/docker-compose.yaml && \
 	echo "Version $(VERSION) set in code, deployment, chart"
 

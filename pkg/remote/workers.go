@@ -18,8 +18,7 @@ import (
 type Worker struct {
 	metricsSubmitter metrics.Submitter
 
-	metricsPerRequest    int //= 1000
-	maxMetricsBufferSize int //= 10000
+	metricsPerRequest int
 
 	Max           int64
 	Current       int64
@@ -69,6 +68,11 @@ var (
 		Name: "anodot_metrics_submission_errors",
 		Help: "Total number of errors occurred while sending metrics to Anodot api",
 	}, labels)
+
+	serverHTTPResponses = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "anodot_server_http_responses_total",
+		Help: "Total number of HTTP responses of Anodot server",
+	}, []string{"anodot_url", "response_code"})
 )
 
 func NewWorker(metricsSubmitter metrics.Submitter, workersLimit int64, debug bool) (*Worker, error) {
@@ -80,7 +84,7 @@ func NewWorker(metricsSubmitter metrics.Submitter, workersLimit int64, debug boo
 		return nil, fmt.Errorf("workersLimit should be > 0")
 	}
 
-	worker := &Worker{metricsSubmitter: metricsSubmitter, Max: workersLimit, MetricsBuffer: make([]metrics.Anodot20Metric, 0, 10000), Debug: debug}
+	worker := &Worker{metricsSubmitter: metricsSubmitter, Max: workersLimit, MetricsBuffer: make([]metrics.Anodot20Metric, 0, 100000), Debug: debug}
 
 	metricsPerRequestStr := os.Getenv("ANODOT_METRICS_PER_REQUEST_SIZE")
 	if len(strings.TrimSpace(metricsPerRequestStr)) != 0 {
@@ -95,7 +99,9 @@ func NewWorker(metricsSubmitter metrics.Submitter, workersLimit int64, debug boo
 	}
 
 	log.Debug(fmt.Sprintf("Metrics per request size is : %d", worker.metricsPerRequest))
-	log.Debug(fmt.Sprintf("Metrics buffer size is : %d", worker.maxMetricsBufferSize))
+	log.Debug(fmt.Sprintf("Metrics buffer size is : %d", len(worker.MetricsBuffer)))
+
+	bufferSize.WithLabelValues(worker.metricsSubmitter.AnodotURL().Host).Set(float64(len(worker.MetricsBuffer)))
 
 	return worker, nil
 }
@@ -103,7 +109,6 @@ func NewWorker(metricsSubmitter metrics.Submitter, workersLimit int64, debug boo
 var mutex = &sync.Mutex{}
 
 func (w *Worker) Do(data []metrics.Anodot20Metric) {
-	bufferSize.WithLabelValues(w.metricsSubmitter.AnodotURL().Host).Set(float64(w.maxMetricsBufferSize))
 
 	mutex.Lock()
 	defer mutex.Unlock()
@@ -151,15 +156,12 @@ func (w *Worker) pushMetrics(metricsSubmitter metrics.Submitter, metricsToSend [
 	defer atomic.AddInt64(&w.Current, -1)
 
 	anodotResponse, err := metricsSubmitter.SubmitMetrics(metricsToSend)
+	if anodotResponse != nil && anodotResponse.RawResponse() != nil {
+		serverHTTPResponses.WithLabelValues(w.metricsSubmitter.AnodotURL().Host, strconv.Itoa(anodotResponse.RawResponse().StatusCode)).Inc()
+	}
 	if err != nil {
 		anodotSubmitterErrors.WithLabelValues(metricsSubmitter.AnodotURL().Host).Inc()
 		log.Error("Failed to send metrics: ", err)
-		return
-	}
-
-	if anodotResponse != nil && anodotResponse.HasErrors() {
-		anodotSubmitterErrors.WithLabelValues(metricsSubmitter.AnodotURL().Host).Inc()
-		log.Error("Anodot server returned error:", anodotResponse.ErrorMessage())
 		return
 	}
 

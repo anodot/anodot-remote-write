@@ -1,7 +1,6 @@
 package prometheus
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9,13 +8,14 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/common/model"
+	log "github.com/sirupsen/logrus"
 	"math"
 	"sort"
-	"strings"
 )
 
 const (
 	maxPropertyLength     = 150
+	maxKeyLength          = 50
 	maxNumberOfProperties = 20
 )
 
@@ -40,15 +40,7 @@ type AnodotParser struct {
 	Tags map[string]string
 }
 
-const (
-	symbols    = "(){},=.'\"\\"
-	printables = "0123456789abcdefghijklmnopqrstuvwxyz" +
-		"ABCDEFGHIJKLMNOPQRSTUVWXYZ" +
-		"!\"#$%&\\'()*+,-./:;<=>?@[\\]^_`{|}~"
-)
-
 func NewAnodotParser(filterIn *string, filterOut *string, tags map[string]string) (*AnodotParser, error) {
-
 	var parser AnodotParser
 
 	if filterIn != nil && *filterIn != "" {
@@ -98,34 +90,6 @@ func (p *AnodotParser) filter(metrics *[]metrics.Anodot20Metric, metric *metrics
 	*metrics = append(*metrics, *metric)
 }
 
-func (p *AnodotParser) escape(tv model.LabelValue) string {
-	length := len(tv)
-	result := bytes.NewBuffer(make([]byte, 0, length))
-	for i := 0; i < length; i++ {
-		b := tv[i]
-		switch {
-		// . is reserved by graphite, % is used to escape other bytes.
-		case b == '.' || b == '%' || b == '/' || b == '=':
-			fmt.Fprintf(result, "%%%X", b)
-			// These symbols are ok only if backslash escaped.
-		case strings.IndexByte(symbols, b) != -1:
-			result.WriteString("\\" + string(b))
-			// These are all fine.
-		case strings.IndexByte(printables, b) != -1:
-			result.WriteByte(b)
-			// Defaults to percent-encoding.
-		default:
-			fmt.Fprintf(result, "%%%X", b)
-		}
-	}
-
-	if len(result.String()) >= maxPropertyLength {
-		return result.String()[:maxPropertyLength]
-	}
-
-	return result.String()
-}
-
 func (p *AnodotParser) ParsePrometheusRequest(samples model.Samples) []metrics.Anodot20Metric {
 	result := make([]metrics.Anodot20Metric, 0)
 
@@ -136,12 +100,14 @@ func (p *AnodotParser) ParsePrometheusRequest(samples model.Samples) []metrics.A
 		metric.Value = float64(r.Value)
 
 		if math.IsNaN(metric.Value) || math.IsInf(metric.Value, 0) {
+			log.Trace(fmt.Sprintf("'%s' skipped. Nan and Inf values are ignored", r.Metric.String()))
 			incorrectValue.Inc()
 			continue
 		}
 
 		if len(r.Metric) > maxNumberOfProperties {
 			metricsPropertiesSizeExceeded.Inc()
+			log.Debug(fmt.Sprintf("Metric is skipped. Numer of lables=%d is more that allowed(%d). %s", len(r.Metric), maxNumberOfProperties, r))
 			continue
 		}
 
@@ -161,12 +127,16 @@ func (p *AnodotParser) ParsePrometheusRequest(samples model.Samples) []metrics.A
 				continue
 			}
 
-			if len(l) >= maxPropertyLength {
-				l = l[:maxPropertyLength]
+			if len(l) >= maxKeyLength {
+				l = l[:maxKeyLength]
+			}
+
+			if len(v) >= maxPropertyLength {
+				v = v[:maxPropertyLength]
 			}
 
 			if l == model.MetricNameLabel {
-				metric.Properties["what"] = p.escape(v)
+				metric.Properties["what"] = string(v)
 				//Should be managed on prometheus config
 				/*if strings.HasSuffix(metric.Properties[WHAT_PROPERTY],"_total") {
 					metric.Properties[TARGET_TYPE] = COUNTER
@@ -179,8 +149,7 @@ func (p *AnodotParser) ParsePrometheusRequest(samples model.Samples) []metrics.A
 				}*/
 				continue
 			}
-
-			metric.Properties[string(l)] = p.escape(v)
+			metric.Properties[string(l)] = string(v)
 		}
 		p.filter(&result, &metric)
 

@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	metrics2 "github.com/anodot/anodot-common/pkg/metrics"
-	anodotPrometheus "github.com/anodot/anodot-common/pkg/metrics/prometheus"
 	"net/url"
 	"os"
 	"strings"
@@ -30,20 +29,17 @@ const (
 	DEFAULT_PORT              = 1234
 	DEFAULT_NUMBER_OF_WORKERS = 20
 	DEFAULT_TOKEN             = ""
-	DEFAULT_ANODOT_PORT       = "443"
 	DEFAULT_ANODOT_URL        = "https://api.anodot.com"
 )
 
 func main() {
 	var serverUrl = flag.String("url", DEFAULT_ANODOT_URL, "Anodot server url. Example: 'https://api.anodot.com'")
-	var port = flag.String("port", DEFAULT_ANODOT_PORT, "Anodot server port. WARNING: will be removed in 2.x version")
 	var token = flag.String("token", DEFAULT_TOKEN, "Account API Token")
 	var serverPort = flag.Int("sever", DEFAULT_PORT, "Prometheus Remote Port")
 	var workers = flag.Int64("workers", DEFAULT_NUMBER_OF_WORKERS, "Remote Write Workers -> Anodot")
 	var filterOut = flag.String("filterOut", "", "Set an expression to remove metrics from stream")
 	var filterIn = flag.String("filterIn", "", "Set an expression to add to stream")
 	var murl = flag.String("murl", "", "Anodot Endpoint - Mirror")
-	var mport = flag.String("mport", "", "Anodot Port - Mirror")
 	var mtoken = flag.String("mtoken", "", "Account AP Token - Mirror")
 	var debug = flag.Bool("debug", false, "Print requests to stdout only")
 
@@ -60,31 +56,33 @@ func main() {
 
 	var mirrorSubmitter metrics2.Submitter
 	if *murl != "" {
-		log.Debug("Anodot Address - Mirror:", *murl, *mport)
+		log.Debug("Anodot Address - Mirror:", *murl)
 		log.Debug("Token - Mirror:", *mtoken)
 
-		mirrorURL, err := toUrl(murl, port)
+		mirrorURL, err := url.Parse(*murl)
 		if err != nil {
-			log.Fatalf("Failed to construct anodot server url with host=%q and port=%q. Error:%s", *murl, *mport, err.Error())
+			log.Fatalf("Failed to construct anodot server url with url=%q. Error:%s", *murl, err.Error())
 		}
 
-		mirrorSubmitter, err = metrics2.NewAnodot20Submitter(mirrorURL.String(), *mtoken, nil)
+		mirrorSubmitter, err = metrics2.NewAnodot20Client(mirrorURL.String(), *mtoken, nil)
 		if err != nil {
 			log.Fatalf("Failed to create mirror submitter: %s", err.Error())
 		}
 	}
 
-	parser, err := anodotPrometheus.NewAnodotParser(filterIn, filterOut, tags(os.Getenv("ANODOT_TAGS")))
+	tags := tags(os.Getenv("ANODOT_TAGS"))
+	log.Debug("Metric tags: ", tags)
+	parser, err := prometheus.NewAnodotParser(filterIn, filterOut, tags)
 	if err != nil {
 		log.Fatalf("Failed to initialize anodot parser. Error: %s", err.Error())
 	}
 
-	primaryUrl, err := toUrl(serverUrl, port)
+	primaryUrl, err := url.Parse(*serverUrl)
 	if err != nil {
-		log.Fatalf("Failed to construct anodot server url with host=%q and port=%q. Error:%s", *serverUrl, *port, err.Error())
+		log.Fatalf("Failed to construct anodot server url with url=%q. Error:%s", *serverUrl, err.Error())
 	}
 
-	primarySubmitter, err := metrics2.NewAnodot20Submitter(primaryUrl.String(), *token, nil)
+	primarySubmitter, err := metrics2.NewAnodot20Client(primaryUrl.String(), *token, nil)
 	if err != nil {
 		log.Fatalf("Failed to create Anodot metrics submitter: %s", err.Error())
 	}
@@ -109,11 +107,6 @@ func main() {
 		allWorkers = append(allWorkers, mirrorWorker)
 	}
 	s.InitHttp(allWorkers)
-}
-
-//TODO remove in future
-func toUrl(serverUrl *string, port *string) (*url.URL, error) {
-	return url.Parse(*serverUrl + ":" + *port)
 }
 
 func tags(envVar string) map[string]string {

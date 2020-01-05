@@ -61,7 +61,7 @@ etc)
 
 Run next command to install chart
 ```shell script
-helm upgrade -i anodot-remote-write .
+helm upgrade -i anodot-remote-write . --namespace=monitoring
 ```
 
 This command will install application in `monitoring` namespace.
@@ -85,6 +85,10 @@ In Prometheus configuration file (default `prometheus.yml`), add `remote_write` 
       evaluation_interval: 60s
     remote_write:
       - url: "http://anodot-prometheus-remote-write:1234/receive"
+        metric_relabel_configs:
+        - source_labels: [ __name__ ]
+          regex: '(nginx_ingress_controller_requests|nginx_ingress_controller_ingress_upstream_latency_seconds)'
+          action: drop
 ```
 
 [Prometheus operator](https://github.com/coreos/prometheus-operator) configuration example (some fields omitted for clarity):

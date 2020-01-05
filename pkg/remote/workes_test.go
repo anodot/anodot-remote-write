@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"github.com/anodot/anodot-common/pkg/metrics"
 	"github.com/prometheus/client_golang/prometheus/testutil"
+	"net/http"
+	"strings"
 
 	"io/ioutil"
 	"log"
@@ -18,7 +20,7 @@ import (
 func TestMetricsShouldBeBuffered(t *testing.T) {
 	expectedMetricsPerRequestSize := 1000
 
-	mockSubmitter := &MockSubmitter{f: func(data []metrics.Anodot20Metric) (*metrics.AnodotResponse, error) {
+	mockSubmitter := &MockSubmitter{f: func(data []metrics.Anodot20Metric) (metrics.AnodotResponse, error) {
 		if len(data) != expectedMetricsPerRequestSize {
 			t.Errorf(fmt.Sprintf("Submitted metreics size is %d. Required size is: %d", len(data), 1000))
 		}
@@ -80,7 +82,7 @@ func (s byTimestamp) Less(i, j int) bool {
 }
 
 func TestToString(t *testing.T) {
-	anodot20Submitter, e := metrics.NewAnodot20Submitter("http://localhost:8080", "123", nil)
+	anodot20Submitter, e := metrics.NewAnodot20Client("http://localhost:8080", "123", nil)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -166,8 +168,11 @@ func TestSubmitError(t *testing.T) {
 	anodotSubmitterErrors.Reset()
 	_ = os.Setenv("ANODOT_METRICS_PER_REQUEST_SIZE", "10")
 
-	worker, err := NewWorker(MockSubmitter{f: func(anodot20Metrics []metrics.Anodot20Metric) (response *metrics.AnodotResponse, e error) {
-		return nil, fmt.Errorf("error happened")
+	worker, err := NewWorker(MockSubmitter{f: func(anodot20Metrics []metrics.Anodot20Metric) (response metrics.AnodotResponse, e error) {
+		return &metrics.CreateResponse{
+			Errors:       nil,
+			HttpResponse: &http.Response{StatusCode: 500},
+		}, fmt.Errorf("error happened")
 	}}, 0, false)
 
 	if err != nil {
@@ -179,6 +184,22 @@ func TestSubmitError(t *testing.T) {
 	if v != 1 {
 		t.Fatal(fmt.Sprintf("Wrong error counter \n got: %f\n want: %f", v, float64(1)))
 	}
+
+	const metadata = `
+        # HELP anodot_server_http_responses_total Total number of HTTP responses of Anodot server
+        # TYPE anodot_server_http_responses_total counter
+	`
+
+	expected := `
+
+		anodot_server_http_responses_total{anodot_url="127.0.0.1",response_code="500"} 1
+	`
+
+	err = testutil.CollectAndCompare(serverHTTPResponses, strings.NewReader(metadata+expected), "anodot_server_http_responses_total")
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
 }
 
 func TestSubmitErrorInReponse(t *testing.T) {
@@ -186,9 +207,9 @@ func TestSubmitErrorInReponse(t *testing.T) {
 
 	_ = os.Setenv("ANODOT_METRICS_PER_REQUEST_SIZE", "10")
 
-	worker, err := NewWorker(MockSubmitter{f: func(anodot20Metrics []metrics.Anodot20Metric) (response *metrics.AnodotResponse, e error) {
+	worker, err := NewWorker(MockSubmitter{f: func(anodot20Metrics []metrics.Anodot20Metric) (response metrics.AnodotResponse, e error) {
 
-		anodotResponse := &metrics.AnodotResponse{
+		anodotResponse := &metrics.CreateResponse{
 			HttpResponse: nil,
 		}
 		anodotResponse.Errors = append(anodotResponse.Errors, struct {
@@ -197,7 +218,7 @@ func TestSubmitErrorInReponse(t *testing.T) {
 			Index       string
 		}{Description: "some text", Error: int64(2), Index: string('3')})
 
-		return anodotResponse, nil
+		return anodotResponse, fmt.Errorf(anodotResponse.ErrorMessage())
 
 	}}, 0, false)
 
@@ -216,7 +237,7 @@ func TestNoMetricsSendInDebugMode(t *testing.T) {
 	log.SetOutput(ioutil.Discard)
 
 	reqSize := 1500
-	mockSubmitter := &MockSubmitter{f: func(metrics []metrics.Anodot20Metric) (*metrics.AnodotResponse, error) {
+	mockSubmitter := &MockSubmitter{f: func(metrics []metrics.Anodot20Metric) (metrics.AnodotResponse, error) {
 		t.Errorf("No metrics should be sent in debug mode")
 		return nil, nil
 	}}
@@ -229,10 +250,10 @@ func TestNoMetricsSendInDebugMode(t *testing.T) {
 }
 
 type MockSubmitter struct {
-	f func([]metrics.Anodot20Metric) (*metrics.AnodotResponse, error)
+	f func([]metrics.Anodot20Metric) (metrics.AnodotResponse, error)
 }
 
-func (m MockSubmitter) SubmitMetrics(metrics []metrics.Anodot20Metric) (*metrics.AnodotResponse, error) {
+func (m MockSubmitter) SubmitMetrics(metrics []metrics.Anodot20Metric) (metrics.AnodotResponse, error) {
 	return m.f(metrics)
 }
 

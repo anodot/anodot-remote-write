@@ -44,7 +44,7 @@ func main() {
 	var debug = flag.Bool("debug", false, "Print requests to stdout only")
 
 	log.InitFlags(nil)
-	err := flag.Set("v", defaultIfBlank(os.Getenv("ANODOT_LOG_LEVEL"), "2"))
+	err := flag.Set("v", defaultIfBlank(os.Getenv("ANODOT_LOG_LEVEL"), "3"))
 	if err != nil {
 		log.Fatal(err)
 	}

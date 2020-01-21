@@ -146,6 +146,7 @@ Changing pod name label, will cause new metric creating in Anodot system.
 
 
 **Solution**
+
 Each pods in deployment/replicaset/daemonset is assigned with unique label `anodot.com/podName=${deployment-name}-${ordinal}`, where ordinal is incrementally assigned to each pod.
 When metrics arrives to anodot-prometheus-remote write, original `pod` and `pod_name` is replaced with `anodot.com/podName` value.
 

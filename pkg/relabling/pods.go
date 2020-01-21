@@ -19,7 +19,7 @@ type PodsMapping struct {
 }
 
 func NewPodsMappingProvider(podRelabelURL string) (*PodsMapping, error) {
-	log.V(3).Infof("kubernetes pods relabel enabled. service URL=%q.Max retries=%d")
+	log.V(3).Infof("kubernetes pods relabel enabled. service URL=%q.Max retries=%d", podRelabelURL, 3)
 	parsedUrl, err := url.Parse(podRelabelURL)
 	if err != nil {
 		return nil, err

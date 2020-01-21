@@ -182,4 +182,5 @@ container_memory_usage_bytes{container_name="elastic-seporter",job="kubelet",nam
  - Pods cache is updated each 60s so there is a chance that some metrics will be dropped. (`anodot_parser_kubernetes_relabling_metrics_dropped` represent total number of dropped metrics)
  
 **Enabling feature**
- //TODO
+1. Install anodot-pod-relabel helm chart by following steps here https://github.com/anodot/helm-charts/tree/master/charts/anodot-pod-relabel
+2. set `K8S_RELABEL_SERVICE_URL` under `Values.configuration.env` in anodot-remote-write helm chart and proceed with installation

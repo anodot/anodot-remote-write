@@ -105,8 +105,7 @@ func (k *KubernetesPodNameProcessor) Mutate(prometheusMetric model.Metric) {
 			if podData == nil {
 				//drop metrics..since we does not know anything about pods
 				log.Warning(fmt.Sprintf("%q metrics is dropped. no %q labels present on pod %q in namespace=%s.", metricName, relabling.AnodotPodNameLabel, podName, namespace))
-				prometheusMetric = nil
-
+				removeMetricData(prometheusMetric)
 				return
 			}
 
@@ -121,7 +120,7 @@ func (k *KubernetesPodNameProcessor) Mutate(prometheusMetric model.Metric) {
 				log.V(4).Infof("set '%s' to='%s' for '%s'='%s'", relabling.AnodotPodNameLabel, anodotPodName, string(labelName), podName)
 			} else {
 				log.Warning("setting prometheus metric to nil ")
-				prometheusMetric = nil
+				removeMetricData(prometheusMetric)
 				return
 			}
 			continue
@@ -282,4 +281,10 @@ func (p *AnodotParser) ParsePrometheusRequest(samples model.Samples) []metrics.A
 
 	}
 	return result
+}
+
+func removeMetricData(prometheusMetric model.Metric) {
+	for name := range prometheusMetric {
+		delete(prometheusMetric, name)
+	}
 }

@@ -347,9 +347,5 @@ func TestMutation(t *testing.T) {
 
 	prometheusMetric = map[model.LabelName]model.LabelValue{"key": "value"}
 
-	processor := KubernetesPodNameProcessor{}
-
-	processor.Mutate(prometheusMetric)
-
-	fmt.Println(prometheusMetric)
+	fmt.Println(len(prometheusMetric) == 0)
 }

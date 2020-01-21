@@ -44,7 +44,10 @@ func main() {
 	var debug = flag.Bool("debug", false, "Print requests to stdout only")
 
 	log.InitFlags(nil)
-	flag.Set("v", os.Getenv("ANODOT_LOG_LEVEL"))
+	err := flag.Set("v", defaultIfBlank(os.Getenv("ANODOT_LOG_LEVEL"), "2"))
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	flag.Parse()
 
@@ -56,8 +59,8 @@ func main() {
 
 	var mirrorSubmitter metrics2.Submitter
 	if *murl != "" {
-		log.V(4).Infof("Anodot Address - Mirror:", *murl)
-		log.V(4).Infof("Token - Mirror:", *mtoken)
+		log.V(4).Infof("Anodot Address - Mirror: %s", *murl)
+		log.V(4).Infof("Token - Mirror: %s", *mtoken)
 
 		mirrorURL, err := url.Parse(*murl)
 		if err != nil {
@@ -148,4 +151,11 @@ func tags(envVar string) map[string]string {
 		}
 	}
 	return res
+}
+
+func defaultIfBlank(actual string, fallback string) string {
+	if len(strings.TrimSpace(actual)) == 0 {
+		return fallback
+	}
+	return actual
 }

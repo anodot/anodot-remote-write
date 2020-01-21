@@ -163,7 +163,7 @@ func NewAnodotParser(filterIn *string, filterOut *string, tags map[string]string
 	return &parser, nil
 }
 
-func extractTags(prometheusMetric model.Metric) map[string]string {
+func (p *AnodotParser) extractTags(prometheusMetric model.Metric) map[string]string {
 	res := make(map[string]string)
 
 	for k, v := range prometheusMetric {
@@ -177,6 +177,11 @@ func extractTags(prometheusMetric model.Metric) map[string]string {
 			delete(prometheusMetric, k)
 		}
 	}
+
+	for k, v := range p.Tags {
+		res[k] = v
+	}
+
 	return res
 }
 
@@ -243,7 +248,7 @@ func (p *AnodotParser) ParsePrometheusRequest(samples model.Samples) []metrics.A
 		sort.Sort(labels)
 		metric.Properties = make(map[string]string)
 
-		metric.Tags = extractTags(r.Metric)
+		metric.Tags = p.extractTags(r.Metric)
 
 		for _, l := range labels {
 

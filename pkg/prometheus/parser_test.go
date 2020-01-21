@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-func TestTags(t *testing.T) {
+func TestTagsSet(t *testing.T) {
 	samples := model.Samples{
 		{
 			Metric: model.Metric{
@@ -32,7 +32,7 @@ func TestTags(t *testing.T) {
 
 	for _, m := range metrics {
 		if !(m.Tags["key"] == "value") {
-			t.Fatalf("tags should be set correctly")
+			t.Fatal(fmt.Sprintf("Wrong value for tags \n got: %s\n want: %s", m.Tags["key"], "value"))
 		}
 	}
 }
@@ -340,12 +340,4 @@ func TestFilterIn(t *testing.T) {
 	if len(metrics) != 2 {
 		t.Fatalf("unexpected number of metrics")
 	}
-}
-
-func TestMutation(t *testing.T) {
-	var prometheusMetric model.Metric
-
-	prometheusMetric = map[model.LabelName]model.LabelValue{"key": "value"}
-
-	fmt.Println(len(prometheusMetric) == 0)
 }

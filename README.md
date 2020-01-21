@@ -183,4 +183,4 @@ container_memory_usage_bytes{container_name="elastic-seporter",job="kubelet",nam
  
 **Enabling feature**
 1. Install anodot-pod-relabel helm chart by following steps here https://github.com/anodot/helm-charts/tree/master/charts/anodot-pod-relabel
-2. set `K8S_RELABEL_SERVICE_URL` under `Values.configuration.env` in anodot-remote-write helm chart and proceed with installation
+2. set `K8S_RELABEL_SERVICE_URL` under `Values.configuration.env` in anodot-remote-write values.yaml and install hel chart

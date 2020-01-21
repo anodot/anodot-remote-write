@@ -5,18 +5,23 @@ import (
 	"errors"
 	"fmt"
 	"github.com/anodot/anodot-common/pkg/metrics"
+	"github.com/anodot/anodot-remote-write/pkg/relabling"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/common/model"
-	log "github.com/sirupsen/logrus"
+	log "k8s.io/klog/v2"
 	"math"
+	"regexp"
 	"sort"
+	"strings"
 )
 
 const (
 	maxPropertyLength     = 150
 	maxKeyLength          = 50
 	maxNumberOfProperties = 20
+	whatPropertyName      = "what"
+	anodotTagLabelPrefix  = "anodot_tag_"
 )
 
 var (
@@ -29,7 +34,100 @@ var (
 		Name: "anodot_parser_value_not_accepted",
 		Help: "Number of times metrics value was not accepted",
 	})
+
+	k8sRelablingDropped = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "anodot_parser_kubernetes_relabling_metrics_dropped",
+		Help: "Number of metrics dropped after ",
+	})
 )
+
+var StatefulPodRegex = regexp.MustCompile("(.*)-([0-9]+)$")
+
+type MetricsProcessor interface {
+	Mutate(prometheusMetric model.Metric)
+	Name() string
+}
+
+type KubernetesPodNameProcessor struct {
+	PodsData *relabling.PodsMapping
+}
+
+func (k *KubernetesPodNameProcessor) Name() string {
+	return "KubernetesPodNameProcessor"
+}
+
+//TODO what to do if pod and pod_name defined ?
+func (k *KubernetesPodNameProcessor) Mutate(prometheusMetric model.Metric) {
+	metricName := prometheusMetric[model.MetricNameLabel]
+
+	_, podLabelExists := prometheusMetric["pod"]
+	_, podNameLabelExists := prometheusMetric["pod_name"]
+
+	if !podLabelExists && !podNameLabelExists {
+		//nothing to do...
+		log.V(4).Infof("no 'pod' or 'pod_name label exists for metrics %s'. skipping mutation", metricName)
+		return
+	}
+
+	for labelName, labelValue := range prometheusMetric {
+		if labelName == "pod" || labelName == "pod_name" {
+			//do nothing for sts
+			podName := string(labelValue)
+			namespace := string(prometheusMetric["namespace"])
+			if StatefulPodRegex.MatchString(podName) {
+				continue
+			}
+
+			//check if pod is in excluded list
+			podData := k.PodsData.ExcludedPods.Lookup(relabling.SearchEntry{
+				PodName:   podName,
+				Namespace: namespace,
+			})
+			//check in all namespaces also
+			if podData == nil {
+				podData = k.PodsData.ExcludedPods.LookupAllNamespaces(podName)
+			}
+
+			if podData != nil {
+				log.V(4).Infof("pod %q is in excluded list..nothing to do", podName)
+				//inc counter
+				return
+			}
+
+			podData = k.PodsData.WhitelistedPods.Lookup(relabling.SearchEntry{
+				PodName:   podName,
+				Namespace: namespace,
+			})
+			if podData == nil {
+				podData = k.PodsData.WhitelistedPods.LookupAllNamespaces(podName)
+			}
+
+			if podData == nil {
+				//drop metrics..since we does not know anything about pods
+				log.Warning(fmt.Sprintf("%q metrics is dropped. no %q labels present on pod %q in namespace=%s.", metricName, relabling.AnodotPodNameLabel, podName, namespace))
+				prometheusMetric = nil
+
+				return
+			}
+
+			log.V(5).Infof("'%s': podinfo '%+v\n' ", podName, podData)
+
+			anodotPodName := podData.AnodotPodName()
+			log.V(4).Infof("%s found pod name: %s", podName, anodotPodName)
+
+			if len(strings.TrimSpace(anodotPodName)) != 0 {
+				prometheusMetric[labelName] = model.LabelValue(anodotPodName)
+				prometheusMetric[anodotTagLabelPrefix+"originalPodName"] = model.LabelValue(podName)
+				log.V(4).Infof("set '%s' to='%s' for '%s'='%s'", relabling.AnodotPodNameLabel, anodotPodName, string(labelName), podName)
+			} else {
+				log.Warning("setting prometheus metric to nil ")
+				prometheusMetric = nil
+				return
+			}
+			continue
+		}
+	}
+}
 
 type AnodotParser struct {
 	FilterOutProperties map[string]string `json:"fop"`
@@ -38,6 +136,8 @@ type AnodotParser struct {
 	// Anodot Metrics tags that will be assigned to all metrics.
 	// https://support.anodot.com/hc/en-us/articles/360020259354-Posting-2-0-Metrics-
 	Tags map[string]string
+
+	MetricsProcessors []MetricsProcessor
 }
 
 func NewAnodotParser(filterIn *string, filterOut *string, tags map[string]string) (*AnodotParser, error) {
@@ -64,8 +164,24 @@ func NewAnodotParser(filterIn *string, filterOut *string, tags map[string]string
 	return &parser, nil
 }
 
-func (p *AnodotParser) filter(metrics *[]metrics.Anodot20Metric, metric *metrics.Anodot20Metric) {
+func extractTags(prometheusMetric model.Metric) map[string]string {
+	res := make(map[string]string)
 
+	for k, v := range prometheusMetric {
+		if strings.HasPrefix(string(k), anodotTagLabelPrefix) {
+			res[strings.TrimPrefix(string(k), anodotTagLabelPrefix)] = string(v)
+		}
+	}
+
+	for k := range prometheusMetric {
+		if strings.HasPrefix(string(k), anodotTagLabelPrefix) {
+			delete(prometheusMetric, k)
+		}
+	}
+	return res
+}
+
+func (p *AnodotParser) filter(metrics *[]metrics.Anodot20Metric, metric *metrics.Anodot20Metric) {
 	for k := range p.FilterInProperties {
 		if val, ok := metric.Properties[k]; ok {
 			if p.FilterInProperties[k] == val {
@@ -100,14 +216,24 @@ func (p *AnodotParser) ParsePrometheusRequest(samples model.Samples) []metrics.A
 		metric.Value = float64(r.Value)
 
 		if math.IsNaN(metric.Value) || math.IsInf(metric.Value, 0) {
-			log.Trace(fmt.Sprintf("'%s' skipped. Nan and Inf values are ignored", r.Metric.String()))
+			log.V(4).Infof("'%s' skipped. Nan and Inf values are ignored", r.Metric.String())
 			incorrectValue.Inc()
 			continue
 		}
 
 		if len(r.Metric) > maxNumberOfProperties {
 			metricsPropertiesSizeExceeded.Inc()
-			log.Debug(fmt.Sprintf("Metric is skipped. Numer of lables=%d is more that allowed(%d). %s", len(r.Metric), maxNumberOfProperties, r))
+			log.Warningf("Metric is skipped. Numer of lables=%d is more that allowed(%d). %s", len(r.Metric), maxNumberOfProperties, r)
+			continue
+		}
+
+		for _, processor := range p.MetricsProcessors {
+			processor.Mutate(r.Metric)
+		}
+
+		if len(r.Metric) == 0 {
+			k8sRelablingDropped.Inc()
+			log.Warningf("dropping empty metric %q", r.Metric[model.MetricNameLabel])
 			continue
 		}
 
@@ -117,7 +243,8 @@ func (p *AnodotParser) ParsePrometheusRequest(samples model.Samples) []metrics.A
 		}
 		sort.Sort(labels)
 		metric.Properties = make(map[string]string)
-		metric.Tags = p.Tags
+
+		metric.Tags = extractTags(r.Metric)
 
 		for _, l := range labels {
 
@@ -136,7 +263,7 @@ func (p *AnodotParser) ParsePrometheusRequest(samples model.Samples) []metrics.A
 			}
 
 			if l == model.MetricNameLabel {
-				metric.Properties["what"] = string(v)
+				metric.Properties[whatPropertyName] = string(v)
 				//Should be managed on prometheus config
 				/*if strings.HasSuffix(metric.Properties[WHAT_PROPERTY],"_total") {
 					metric.Properties[TARGET_TYPE] = COUNTER

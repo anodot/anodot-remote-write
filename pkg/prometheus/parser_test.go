@@ -341,3 +341,15 @@ func TestFilterIn(t *testing.T) {
 		t.Fatalf("unexpected number of metrics")
 	}
 }
+
+func TestMutation(t *testing.T) {
+	var prometheusMetric model.Metric
+
+	prometheusMetric = map[model.LabelName]model.LabelValue{"key": "value"}
+
+	processor := KubernetesPodNameProcessor{}
+
+	processor.Mutate(prometheusMetric)
+
+	fmt.Println(prometheusMetric)
+}

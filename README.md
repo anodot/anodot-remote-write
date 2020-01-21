@@ -137,22 +137,22 @@ elastic-exporter-6c476798f7-6xgls         1/1     Running   0  14d
 
 Prometheus metrics for such pod will look like this:
 ```bash
-container_memory_usage_bytes{job="kubelet",namespace="default",node="cluster-node1",pod_name="elastic-exporter-6c476798f7-6xgls"}
-container_memory_usage_bytes{job="kubelet",namespace="default",node="cluster-node2",pod_name="cloudwatch-exporter-945b6685d-hxfcz"}
+container_memory_usage_bytes{job="kubelet",namespace="monitoring",node="cluster-node1",pod_name="elastic-exporter-6c476798f7-6xgls"}
+container_memory_usage_bytes{job="kubelet",namespace="monitoring",node="cluster-node2",pod_name="cloudwatch-exporter-945b6685d-hxfcz"}
 ```
 
-When integrating Prometheus with Anodot system, metrics labels will be converted to Anodot metric dimension.
-Changing pod name label, will cause new metric creating in Anodot system, 
+TODO: explain why this is bad
+Changing pod name label, will cause new metric creating in Anodot system. 
 
 
 **Solution**
-Each pods in deployment/replicaset is assigned with unique label `anodot.com/podName=${deployment-name}-${ordinal}`, where ordinal is incrementally assigned to each pod.
-When metrics arrives to anodot-prometheus-remote write, original `pod` and `pod_name` is replaced with `anodot.com/podName` value. 
+Each pods in deployment/replicaset/daemonset is assigned with unique label `anodot.com/podName=${deployment-name}-${ordinal}`, where ordinal is incrementally assigned to each pod.
+When metrics arrives to anodot-prometheus-remote write, original `pod` and `pod_name` is replaced with `anodot.com/podName` value.
 
-anodot-prometheus-remote-write application, keeps track of all pods information
-If there is no value for given pod, metric is dropped until pods cache is updated (This happens each 60s.)
+anodot-prometheus-remote-write application, keeps track of all pods information (mapping between original pod name and pod name under `anodot.com/podName` label)
+If there are no mapping information for given pod, **such metrics will not be sent** to Anodot system to prevent from creating unnecessary metrics.
 
-Lets take a look at next example:
+Lets take a look at next example on how re-writing is done:
 
 1.
 ```bash
@@ -179,3 +179,6 @@ container_memory_usage_bytes{container_name="elastic-seporter",job="kubelet",nam
 
 **Important notes**
  - Pods cache is updated each 60s so there is a chance that some metrics will be dropped. (`anodot_parser_kubernetes_relabling_metrics_dropped` represent total number of dropped metrics)
+ 
+**Enabling feature**
+ //TODO

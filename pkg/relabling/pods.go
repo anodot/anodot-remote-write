@@ -25,6 +25,8 @@ func NewPodsMappingProvider(podRelabelURL string) (*PodsMapping, error) {
 		return nil, err
 	}
 
+	parsedUrl.Path = "/pods"
+
 	return &PodsMapping{
 		WhitelistedPods: NewCache(),
 		ExcludedPods:    NewCache(),

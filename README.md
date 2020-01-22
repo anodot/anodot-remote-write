@@ -18,8 +18,8 @@
   * [Authors](#authors)
   * [License and Disclaimer](#license-and-disclaimer)
 
-# Building From Source
-## Prerequisites
+## Building From Source
+### Prerequisites
  - Go >= 1.13
  
 ```shell script
@@ -27,12 +27,12 @@ git clone https://github.com/anodot/anodot-remote-write.git && cd anodot-remote-
 make all
 ```
 
-## Running Tests
+### Running Tests
 ```shell script
 make test
 ```
 
-# Install Using Helm
+## Install Using Helm
 
 Optional Configuration options. Should be specified under `configuration.env` section in values.yaml
 
@@ -61,7 +61,7 @@ helm upgrade -i anodot-remote-write . --namespace=monitoring
 
 This command will install application in `monitoring` namespace.
 
-### Install Via Docker Compose
+## Install Via Docker Compose
 
 ```shell script
 cd deployment/docker-compose
@@ -72,7 +72,7 @@ Run next command to start application:
 docker-compose up -d 
 ``` 
 
-# Configuring Prometheus Server
+## Configuring Prometheus Server
 In Prometheus configuration file (default `prometheus.yml`), add `remote_write` [configuration](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write)
  ```yaml
  global:

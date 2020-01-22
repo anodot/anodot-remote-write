@@ -9,13 +9,9 @@ import (
 
 const AnodotPodNameLabel string = "anodot.com/podName"
 
-type PodData struct {
-	Name   string
-	Labels map[string]string
-}
-
-func (p *PodData) AnodotPodName() string {
-	return p.Labels[AnodotPodNameLabel]
+func (k *CacheKey) AnodotPodName() string {
+	_, podName := k.GetPodNameAndNamespace()
+	return podName
 }
 
 type CacheKey string
@@ -31,14 +27,14 @@ func (k CacheKey) GetPodNameAndNamespace() (namespace, podName string) {
 
 type PodCache struct {
 	mu sync.RWMutex
-	//Namespace|podname CacheKey example: kube-system|nginx-123123-123123
-	Data map[CacheKey]*PodData
+	//namespace|podname CacheKey example: kube-system|nginx-123123-123123
+	Data map[CacheKey]string
 }
 
 func NewCache() *PodCache {
 	return &PodCache{
 		mu:   sync.RWMutex{},
-		Data: map[CacheKey]*PodData{},
+		Data: map[CacheKey]string{},
 	}
 }
 
@@ -61,36 +57,21 @@ func (p *PodCache) Store(e SaveEntry) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	p.Data[NewKey(e.Namespace, e.Name)] = &PodData{
-		Labels: e.Labels,
-		Name:   e.Name,
-	}
+	p.Data[NewKey(e.Namespace, e.Name)] = e.Labels[AnodotPodNameLabel]
 }
 
-func (p *PodCache) Replace(e map[CacheKey]*PodData) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	newMap := make(map[CacheKey]*PodData, len(e))
-	for k, v := range e {
-		newMap[k] = v
-	}
-
-	p.Data = newMap
-}
-
-func (p *PodCache) Lookup(e SearchEntry) *PodData {
+func (p *PodCache) Lookup(e SearchEntry) string {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
 	return p.Data[NewKey(e.Namespace, e.PodName)]
 }
 
-func (p *PodCache) LookupAllNamespaces(podname string) *PodData {
+func (p *PodCache) LookupAllNamespaces(podname string) string {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
-	values := make([]*PodData, 0)
+	values := make([]string, 0)
 	for key, v := range p.Data {
 		if strings.HasSuffix(string(key), fmt.Sprintf("|%s", podname)) {
 			values = append(values, v)
@@ -98,17 +79,17 @@ func (p *PodCache) LookupAllNamespaces(podname string) *PodData {
 	}
 
 	if len(values) != 1 {
-		return nil
+		return ""
 	}
 
 	return values[0]
 }
 
-func (p *PodCache) Entries() map[CacheKey]*PodData {
+func (p *PodCache) MarshalJson() ([]byte, error) {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
-	return p.Data
+	return json.Marshal(p.Data)
 }
 
 func (p *PodCache) Delete(e SearchEntry) {
@@ -131,4 +112,16 @@ func (p *PodCache) Size() int {
 	defer p.mu.RUnlock()
 
 	return len(p.Data)
+}
+
+func (p *PodCache) Replace(e map[CacheKey]string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	newMap := make(map[CacheKey]string, len(e))
+	for k, v := range e {
+		newMap[k] = v
+	}
+
+	p.Data = newMap
 }

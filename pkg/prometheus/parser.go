@@ -57,6 +57,7 @@ func (k *KubernetesPodNameProcessor) Name() string {
 }
 
 //TODO what to do if pod and pod_name defined ?
+
 func (k *KubernetesPodNameProcessor) Mutate(prometheusMetric model.Metric) {
 	metricName := prometheusMetric[model.MetricNameLabel]
 
@@ -79,39 +80,36 @@ func (k *KubernetesPodNameProcessor) Mutate(prometheusMetric model.Metric) {
 			}
 
 			//check if pod is in excluded list
-			podData := k.PodsData.ExcludedPods.Lookup(relabling.SearchEntry{
+			anodotPodName := k.PodsData.ExcludedPods.Lookup(relabling.SearchEntry{
 				PodName:   podName,
 				Namespace: namespace,
 			})
 			//check in all namespaces also
-			if podData == nil {
-				podData = k.PodsData.ExcludedPods.LookupAllNamespaces(podName)
+			if anodotPodName == "" {
+				anodotPodName = k.PodsData.ExcludedPods.LookupAllNamespaces(podName)
 			}
 
-			if podData != nil {
+			if anodotPodName != "" {
 				log.V(4).Infof("pod %q is in excluded list..nothing to do", podName)
 				//inc counter
 				return
 			}
 
-			podData = k.PodsData.WhitelistedPods.Lookup(relabling.SearchEntry{
+			anodotPodName = k.PodsData.WhitelistedPods.Lookup(relabling.SearchEntry{
 				PodName:   podName,
 				Namespace: namespace,
 			})
-			if podData == nil {
-				podData = k.PodsData.WhitelistedPods.LookupAllNamespaces(podName)
+			if anodotPodName == "" {
+				anodotPodName = k.PodsData.WhitelistedPods.LookupAllNamespaces(podName)
 			}
 
-			if podData == nil {
+			if anodotPodName == "" {
 				//drop metrics..since we does not know anything about pods
 				log.Warning(fmt.Sprintf("%q metrics is dropped. no %q labels present on pod %q in namespace=%s.", metricName, relabling.AnodotPodNameLabel, podName, namespace))
 				removeMetricData(prometheusMetric)
 				return
 			}
 
-			log.V(5).Infof("'%s': podinfo '%+v\n' ", podName, podData)
-
-			anodotPodName := podData.AnodotPodName()
 			log.V(4).Infof("%s found pod name: %s", podName, anodotPodName)
 
 			if len(strings.TrimSpace(anodotPodName)) != 0 {

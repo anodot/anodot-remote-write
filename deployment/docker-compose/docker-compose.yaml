@@ -2,9 +2,12 @@ version: '2'
 
 services:
   remote-write:
-    image: anodot/prometheus-remote-write:2.1.0-alpha1
+    image: anodot/prometheus-remote-write:2.2.0-alpha2
     container_name: anodot-prometheus-remote-write
     restart: unless-stopped
+    environment:
+      ANODOT_LOG_LEVEL: "3"
+      ANODOT_HTTP_DEBUG_ENABLED: "false"
     ports:
       - "1234:1234"
     command: ["-url=https://api.anodot.com","-token=<CHANGE_ME>","-workers=20"]

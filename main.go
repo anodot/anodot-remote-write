@@ -34,7 +34,7 @@ var (
 
 func main() {
 	var serverUrl = flag.String("url", DEFAULT_ANODOT_URL, "Anodot server url. Example: 'https://api.anodot.com'")
-	var token = flag.String("token", DEFAULT_TOKEN, "Account API Token")
+	var tokenFlagValue = flag.String("token", DEFAULT_TOKEN, "Account API Token")
 	var serverPort = flag.Int("sever", DEFAULT_PORT, "Prometheus Remote Port")
 	var workers = flag.Int64("workers", DEFAULT_NUMBER_OF_WORKERS, "Remote Write Workers -> Anodot")
 	var filterOut = flag.String("filterOut", "", "Set an expression to remove metrics from stream")
@@ -50,6 +50,8 @@ func main() {
 	}
 
 	flag.Parse()
+
+	token := envOrFlag("ANODOT_API_TOKEN", tokenFlagValue)
 
 	log.Info(fmt.Sprintf("Anodot Remote Write version: '%s'. GitSHA: '%s'", version.VERSION, version.REVISION))
 	log.V(3).Infof("Go Version: %s", runtime.Version())
@@ -113,7 +115,7 @@ func main() {
 		log.Fatalf("Failed to construct anodot server url with url=%q. Error:%s", *serverUrl, err.Error())
 	}
 
-	primarySubmitter, err := metrics2.NewAnodot20Client(primaryUrl.String(), *token, nil)
+	primarySubmitter, err := metrics2.NewAnodot20Client(primaryUrl.String(), token, nil)
 	if err != nil {
 		log.Fatalf("Failed to create Anodot metrics submitter: %s", err.Error())
 	}
@@ -158,4 +160,8 @@ func defaultIfBlank(actual string, fallback string) string {
 		return fallback
 	}
 	return actual
+}
+
+func envOrFlag(envVarName string, flagValue *string) string {
+	return defaultIfBlank(os.Getenv(envVarName), *flagValue)
 }

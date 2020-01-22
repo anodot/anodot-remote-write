@@ -18,7 +18,7 @@
   * [Authors](#authors)
   * [License and Disclaimer](#license-and-disclaimer)
 
-# Building application
+# Building From Source
 ## Prerequisites
  - Go >= 1.13
  
@@ -32,7 +32,7 @@ make all
 make test
 ```
 
-# Deploying application application
+# Deploy 
 
 Optional Configuration options. Should be specified under `configuration.env` section in values.yaml
 
@@ -46,7 +46,7 @@ Optional Configuration options. Should be specified under `configuration.env` se
 - Docker 1.18ce.
 - Prometheus Server
 
-### Using helm
+### Using Helm
 
 ```shell script
 helm repo add anodot https://anodot.github.io/helm-charts
@@ -77,7 +77,7 @@ Run next command to start application:
 docker-compose up -d 
 ``` 
 
-# Configuring Prometheus server
+# Configuring Prometheus Server
 In Prometheus configuration file (default `prometheus.yml`), add `remote_write` [configuration](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write)
  ```yaml
  global:

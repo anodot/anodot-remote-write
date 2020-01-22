@@ -52,11 +52,14 @@ func (p *PodsMapping) UpdateConfig() error {
 		return fmt.Errorf("failed to get pod mapping configuration empty response")
 	}
 
-	defer response.Body.Close()
-
 	body, err := ioutil.ReadAll(response.Body)
 	if err != nil {
 		return fmt.Errorf("failed to get pod mapping configuration: %s", err.Error())
+	}
+
+	err = response.Body.Close()
+	if err != nil {
+		return err
 	}
 
 	log.V(5).Infof("fetched config: %s", string(body))

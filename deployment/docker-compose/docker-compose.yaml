@@ -2,7 +2,7 @@ version: '2'
 
 services:
   remote-write:
-    image: anodot/prometheus-remote-write:2.2.0-alpha2
+    image: anodot/prometheus-remote-write:2.2.0
     container_name: anodot-prometheus-remote-write
     restart: unless-stopped
     environment:

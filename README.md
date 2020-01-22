@@ -27,12 +27,12 @@ git clone https://github.com/anodot/anodot-remote-write.git && cd anodot-remote-
 make all
 ```
 
-## Running tests
+## Running Tests
 ```shell script
 make test
 ```
 
-# Deploy 
+# Install Using Helm
 
 Optional Configuration options. Should be specified under `configuration.env` section in values.yaml
 
@@ -42,11 +42,6 @@ Optional Configuration options. Should be specified under `configuration.env` se
 | ANODOT_TAGS                 | Format `TAG1=VALUE1;TAG2=VALUE2` Static tags that will be added to Anodot |["source":"prometheus-remote-write"]|
 | ANODOT_HTTP_DEBUG_ENABLED   | Should be used to enable HTTP requests/response dumps to stdout |false|
 
-## Prerequisites
-- Docker 1.18ce.
-- Prometheus Server
-
-### Using Helm
 
 ```shell script
 helm repo add anodot https://anodot.github.io/helm-charts
@@ -66,7 +61,7 @@ helm upgrade -i anodot-remote-write . --namespace=monitoring
 
 This command will install application in `monitoring` namespace.
 
-### Using docker-compose
+### Install Via Docker Compose
 
 ```shell script
 cd deployment/docker-compose

@@ -39,9 +39,9 @@ func NewCache() *PodCache {
 }
 
 type SaveEntry struct {
-	Name      string
-	Labels    map[string]string
-	Namespace string
+	Name        string
+	ChangedName string
+	Namespace   string
 }
 
 type SearchEntry struct {
@@ -57,7 +57,7 @@ func (p *PodCache) Store(e SaveEntry) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	p.Data[NewKey(e.Namespace, e.Name)] = e.Labels[AnodotPodNameLabel]
+	p.Data[NewKey(e.Namespace, e.Name)] = e.ChangedName
 }
 
 func (p *PodCache) Lookup(e SearchEntry) string {

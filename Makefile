@@ -4,7 +4,7 @@ GOFLAGS=-mod=vendor
 GOARCH := amd64
 GOOS := linux
 
-GOLINT_VERSION:=1.19.1
+GOLINT_VERSION:=1.23.1
 
 BUILD_FLAGS = GO111MODULE=on CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) GOFLAGS=$(GOFLAGS)
 APPLICATION_NAME := anodot-prometheus-remote-write
@@ -74,5 +74,6 @@ version-set:
 	echo "Version $(VERSION) set in code, deployment, chart"
 
 vendor-update:
+	GO111MODULE=on go get -u ./pkg/...
 	GO111MODULE=on go mod tidy
 	GO111MODULE=on go mod vendor

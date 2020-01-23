@@ -6,7 +6,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
-	log "github.com/sirupsen/logrus"
+	log "k8s.io/klog/v2"
 	"os"
 	"strconv"
 	"strings"
@@ -98,8 +98,8 @@ func NewWorker(metricsSubmitter metrics.Submitter, workersLimit int64, debug boo
 		worker.metricsPerRequest = 1000
 	}
 
-	log.Debug(fmt.Sprintf("Metrics per request size is : %d", worker.metricsPerRequest))
-	log.Debug(fmt.Sprintf("Metrics buffer size is : %d", len(worker.MetricsBuffer)))
+	log.V(4).Infof("Metrics per request size is : %d", worker.metricsPerRequest)
+	log.V(4).Infof("Metrics buffer size is : %d", len(worker.MetricsBuffer))
 
 	bufferSize.WithLabelValues(worker.metricsSubmitter.AnodotURL().Host).Set(float64(len(worker.MetricsBuffer)))
 
@@ -115,9 +115,9 @@ func (w *Worker) Do(data []metrics.Anodot20Metric) {
 
 	metricsReceivedTotal.Add(float64(len(data)))
 	if w.Debug {
-		log.Debug(fmt.Sprintf("Received (%d) metrics: ", len(data)))
+		log.V(4).Infof("Received (%d) metrics: ", len(data))
 		for i := 0; i < len(data); i++ {
-			log.Trace((data)[i])
+			log.V(5).Info((data)[i])
 		}
 		return
 	}
@@ -125,7 +125,7 @@ func (w *Worker) Do(data []metrics.Anodot20Metric) {
 	w.MetricsBuffer = append(w.MetricsBuffer, data...)
 	bufferedMetrics.WithLabelValues(w.metricsSubmitter.AnodotURL().Host).Set(float64(len(w.MetricsBuffer)))
 
-	log.Debug(fmt.Sprintf("Buffer size is %d", len(w.MetricsBuffer)))
+	log.V(4).Infof("Buffer size is %d", len(w.MetricsBuffer))
 	if len(w.MetricsBuffer) < w.metricsPerRequest {
 		// need to wait until buffer will have enough elements to send
 		return
@@ -140,7 +140,7 @@ func (w *Worker) Do(data []metrics.Anodot20Metric) {
 	concurrentWorkers.WithLabelValues(w.metricsSubmitter.AnodotURL().Host).Set(float64(w.Current))
 	if w.Current >= w.Max {
 		concurrencyLimitReached.WithLabelValues(w.metricsSubmitter.AnodotURL().Host).Inc()
-		log.Warn("Reached workers concurrency limit. Sending metrics in single thread.")
+		log.Warning("Reached workers concurrency limit. Sending metrics in single thread.")
 		w.pushMetrics(w.metricsSubmitter, metricsToSend)
 	} else {
 		go func() {

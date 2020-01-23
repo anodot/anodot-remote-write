@@ -203,7 +203,8 @@ func TestMetricsData(t *testing.T) {
 	}
 
 	expectedTags := map[string]string{
-		"source": "prometheus-remote-write",
+		"source":   "prometheus-remote-write",
+		"job_name": "tag-test-app",
 	}
 
 	for _, m := range metrics {

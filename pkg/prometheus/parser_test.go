@@ -3,13 +3,15 @@ package prometheus
 import (
 	"bytes"
 	"fmt"
+	"github.com/anodot/anodot-remote-write/pkg/relabling"
 	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/prometheus/common/model"
 	"math"
+	"reflect"
 	"testing"
 )
 
-func TestTags(t *testing.T) {
+func TestTagsSet(t *testing.T) {
 	samples := model.Samples{
 		{
 			Metric: model.Metric{
@@ -32,7 +34,7 @@ func TestTags(t *testing.T) {
 
 	for _, m := range metrics {
 		if !(m.Tags["key"] == "value") {
-			t.Fatalf("tags should be set correctly")
+			t.Fatal(fmt.Sprintf("Wrong value for tags \n got: %s\n want: %s", m.Tags["key"], "value"))
 		}
 	}
 }
@@ -340,4 +342,117 @@ func TestFilterIn(t *testing.T) {
 	if len(metrics) != 2 {
 		t.Fatalf("unexpected number of metrics")
 	}
+}
+
+func TestPodNameChangeExcludedNamespace(t *testing.T) {
+	mappingProvider, err := relabling.NewPodsMappingProvider("http://localhostt")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	mappingProvider.ExcludedPods.Store(relabling.SaveEntry{
+		Name:        "prometheus-operator-prometheus-node-exporter-57hwp",
+		ChangedName: "wrong-name",
+		Namespace:   "excluded-ns-name",
+	})
+
+	metric := model.Metric{}
+	metric[model.LabelName("namespace")] = "excluded-ns-name"
+	metric[model.LabelName("pod_name")] = "prometheus-operator-prometheus-node-exporter-57hwp"
+
+	kubernetesPodNameProcessor := KubernetesPodNameProcessor{PodsData: mappingProvider}
+	kubernetesPodNameProcessor.Mutate(metric)
+
+	if metric["pod_name"] != "prometheus-operator-prometheus-node-exporter-57hwp" {
+		t.Fatal("pod_name should not be changed, if pod is in excluded list")
+	}
+}
+
+func TestPodNameChangeMissingData(t *testing.T) {
+	mappingProvider, err := relabling.NewPodsMappingProvider("http://localhostt")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	mappingProvider.ExcludedPods.Store(relabling.SaveEntry{
+		Name:        "prometheus-operator-prometheus-node-exporter-57hwp",
+		ChangedName: "wrong-name",
+		Namespace:   "excluded-ns-name",
+	})
+
+	mappingProvider.WhitelistedPods.Store(relabling.SaveEntry{
+		Name:        "kafka-exporter-kafka-prometheus-monitoring-64ff4b9d6-hwxzf",
+		ChangedName: "kafka-exporter-kafka-prometheus-monitoring-0",
+		Namespace:   "included-ns",
+	})
+
+	metric := model.Metric{}
+	metric[model.LabelName("namespace")] = "included-ns"
+	metric[model.LabelName("pod_name")] = "kafka-exporter-kafka-prometheus-monitoring-64ff4b9d6-NOT_IN_CACHE_YET"
+
+	kubernetesPodNameProcessor := KubernetesPodNameProcessor{PodsData: mappingProvider}
+	kubernetesPodNameProcessor.Mutate(metric)
+
+	if len(metric) != 0 {
+		t.Fatal("metrics, which does not present in cache should be dropped")
+	}
+}
+
+func TestPodNameChangeCachePresent(t *testing.T) {
+	mappingProvider, err := relabling.NewPodsMappingProvider("http://localhostt")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	mappingProvider.ExcludedPods.Store(relabling.SaveEntry{
+		Name:        "prometheus-operator-prometheus-node-exporter-57hwp",
+		ChangedName: "wrong-name",
+		Namespace:   "excluded-ns-name",
+	})
+
+	mappingProvider.WhitelistedPods.Store(relabling.SaveEntry{
+		Name:        "kafka-exporter-kafka-prometheus-monitoring-64ff4b9d6-hwxzf",
+		ChangedName: "kafka-exporter-kafka-prometheus-monitoring-0",
+		Namespace:   "included-ns",
+	})
+
+	metric := model.Metric{}
+	metric[model.LabelName("namespace")] = "included-ns"
+	metric[model.LabelName("pod_name")] = "kafka-exporter-kafka-prometheus-monitoring-64ff4b9d6-hwxzf"
+
+	kubernetesPodNameProcessor := KubernetesPodNameProcessor{PodsData: mappingProvider}
+	kubernetesPodNameProcessor.Mutate(metric)
+
+	if metric["pod_name"] != "kafka-exporter-kafka-prometheus-monitoring-0" {
+		t.Fatal("pod_name should be changed, if pod is in white list")
+	}
+}
+
+func TestExtractTags(t *testing.T) {
+	parser := AnodotParser{
+		FilterOutProperties: nil,
+		FilterInProperties:  nil,
+		Tags:                map[string]string{"static-key": "static-value"},
+		MetricsProcessors:   nil,
+	}
+
+	metric := model.Metric{}
+	metric[model.LabelName("namespace")] = "included-ns"
+	metric[model.LabelName("pod_name")] = "kafka-exporter-kafka-prometheus-monitoring-64ff4b9d6-hwxzf"
+	metric[model.LabelName("anodot_tag_key")] = "tag-value"
+
+	tags := parser.extractTags(metric)
+	if len(tags) != 2 {
+		t.Fatal(fmt.Sprintf("Wrong number of tags \n got: %d\n want: %d", len(tags), 2))
+	}
+
+	expctedTags := map[string]string{"key": "tag-value", "static-key": "static-value"}
+	if !reflect.DeepEqual(expctedTags, tags) {
+		t.Fatal(fmt.Sprintf("Wrong tags \n got: %s\n want: %s", tags, expctedTags))
+	}
+
+	if _, ok := metric["anodot_tag_key"]; ok {
+		t.Fatal("'anodot_tag_key' should be removed from metrics labels")
+	}
+
 }

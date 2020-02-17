@@ -1,7 +1,6 @@
 package relabling
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 	"sync"
@@ -85,33 +84,11 @@ func (p *PodCache) LookupAllNamespaces(podname string) string {
 	return values[0]
 }
 
-func (p *PodCache) MarshalJson() ([]byte, error) {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
-
-	return json.Marshal(p.Data)
-}
-
 func (p *PodCache) Delete(e SearchEntry) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
 	delete(p.Data, NewKey(e.Namespace, e.PodName))
-}
-
-func (p *PodCache) PrintEntries() {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
-
-	data, _ := json.Marshal(p.Data)
-	fmt.Println(string(data))
-}
-
-func (p *PodCache) Size() int {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
-
-	return len(p.Data)
 }
 
 func (p *PodCache) Replace(e map[CacheKey]string) {

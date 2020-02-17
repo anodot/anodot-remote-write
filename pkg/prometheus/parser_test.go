@@ -398,6 +398,36 @@ func TestPodNameChangeMissingData(t *testing.T) {
 	}
 }
 
+func TestPodNameChangeEmpty(t *testing.T) {
+	mappingProvider, err := relabling.NewPodsMappingProvider("http://localhostt")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	mappingProvider.ExcludedPods.Store(relabling.SaveEntry{
+		Name:        "prometheus-operator-prometheus-node-exporter-57hwp",
+		ChangedName: "wrong-name",
+		Namespace:   "excluded-ns-name",
+	})
+
+	mappingProvider.WhitelistedPods.Store(relabling.SaveEntry{
+		Name:        "kafka-exporter-kafka-prometheus-monitoring-64ff4b9d6-hwxzf",
+		ChangedName: "kafka-exporter-kafka-prometheus-monitoring-0",
+		Namespace:   "included-ns",
+	})
+
+	metric := model.Metric{}
+	metric[model.LabelName("namespace")] = "included-ns"
+	metric[model.LabelName("pod_name")] = "kafka-exporter-kafka-prometheus-monitoring-64ff4b9d6-hwxzf"
+
+	kubernetesPodNameProcessor := KubernetesPodNameProcessor{PodsData: mappingProvider}
+	kubernetesPodNameProcessor.Mutate(metric)
+
+	if metric["pod_name"] != "kafka-exporter-kafka-prometheus-monitoring-0" {
+		t.Fatalf("pod_name should be changed, if pod is in white list. current name %q", metric["pod_name"])
+	}
+}
+
 func TestPodNameChangeCachePresent(t *testing.T) {
 	mappingProvider, err := relabling.NewPodsMappingProvider("http://localhostt")
 	if err != nil {

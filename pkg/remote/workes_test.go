@@ -178,7 +178,7 @@ func TestSubmitError(t *testing.T) {
 			Errors:       nil,
 			HttpResponse: &http.Response{StatusCode: 500},
 		}, fmt.Errorf("error happened")
-	}}, 0, false)
+	}}, 1, false)
 
 	if err != nil {
 		t.Fatal(err)

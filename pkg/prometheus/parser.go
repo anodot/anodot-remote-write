@@ -163,6 +163,9 @@ func NewAnodotParser(filterIn *string, filterOut *string, tags map[string]string
 
 func (p *AnodotParser) extractTags(prometheusMetric model.Metric) map[string]string {
 	res := make(map[string]string)
+	for k, v := range p.Tags {
+		res[k] = v
+	}
 
 	for k, v := range prometheusMetric {
 		if strings.HasPrefix(string(k), anodotTagLabelPrefix) {
@@ -176,7 +179,15 @@ func (p *AnodotParser) extractTags(prometheusMetric model.Metric) map[string]str
 		}
 	}
 
-	for k, v := range p.Tags {
+	for k, v := range res {
+		if len(v) >= maxPropertyLength {
+			v = v[:maxPropertyLength]
+		}
+
+		if len(k) >= maxKeyLength {
+			delete(res, k)
+			k = k[:maxKeyLength]
+		}
 		res[k] = v
 	}
 

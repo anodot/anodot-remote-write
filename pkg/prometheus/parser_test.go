@@ -153,14 +153,16 @@ func TestMaxPropertyLength(t *testing.T) {
 			Metric: model.Metric{
 				model.MetricNameLabel: "long_value",
 				"long_value":          model.LabelValue(longValue.String()),
+				"anodot_tag_long":     model.LabelValue(longValue.String()),
 			},
 			Timestamp: model.Time(1574693483),
 			Value:     1,
 		},
 		{
 			Metric: model.Metric{
-				model.MetricNameLabel:             "long_key",
-				model.LabelName(longKey.String()): "long_key",
+				model.MetricNameLabel:                             "long_key",
+				model.LabelName(longKey.String()):                 "long_key",
+				model.LabelName("anodot_tag_" + longKey.String()): "long_tag_key",
 			},
 			Timestamp: model.Time(1574693483),
 			Value:     2,
@@ -185,6 +187,18 @@ func TestMaxPropertyLength(t *testing.T) {
 
 			if len(v) > 150 {
 				t.Fatalf("metrics property value should be <=150")
+			}
+		}
+	}
+
+	for _, m := range metrics {
+		for k, v := range m.Tags {
+			if len(k) > 50 {
+				t.Fatalf("metrics tag key should be <=50")
+			}
+
+			if len(v) > 150 {
+				t.Fatalf("metrics tag value should be <=150")
 			}
 		}
 	}
@@ -459,12 +473,7 @@ func TestPodNameChangeCachePresent(t *testing.T) {
 }
 
 func TestExtractTags(t *testing.T) {
-	parser := AnodotParser{
-		FilterOutProperties: nil,
-		FilterInProperties:  nil,
-		Tags:                map[string]string{"static-key": "static-value"},
-		MetricsProcessors:   nil,
-	}
+	parser, _ := NewAnodotParser(nil, nil, map[string]string{"static-key": "static-value"})
 
 	metric := model.Metric{}
 	metric[model.LabelName("namespace")] = "included-ns"

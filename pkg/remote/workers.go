@@ -94,7 +94,8 @@ func NewWorker(metricsSubmitter metrics.Submitter, workersLimit int64, debug boo
 		return nil, fmt.Errorf("workersLimit should be > 0")
 	}
 
-	worker := &Worker{metricsSubmitter: metricsSubmitter, Max: workersLimit, MetricsBuffer: make([]metrics.Anodot20Metric, 0, 100000), Debug: debug, flushBuffer: make(chan bool)}
+	// 20 - amount of batches to send to Anodot system
+	worker := &Worker{metricsSubmitter: metricsSubmitter, Max: workersLimit, MetricsBuffer: make([]metrics.Anodot20Metric, 0, 100000), Debug: debug, flushBuffer: make(chan bool, 20)}
 
 	metricsPerRequestStr := os.Getenv("ANODOT_METRICS_PER_REQUEST_SIZE")
 	if len(strings.TrimSpace(metricsPerRequestStr)) != 0 {

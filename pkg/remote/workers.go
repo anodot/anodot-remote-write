@@ -166,7 +166,7 @@ func (w *Worker) Do(data []metrics.Anodot20Metric) {
 	w.MetricsBuffer = append(w.MetricsBuffer, data...)
 	w.mu.Unlock()
 
-	if w.BufferSize() > w.metricsPerRequest {
+	if w.BufferSize() >= w.metricsPerRequest {
 		w.flushBuffer <- true
 	}
 }

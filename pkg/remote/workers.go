@@ -3,7 +3,6 @@ package remote
 import (
 	"fmt"
 	"github.com/anodot/anodot-common/pkg/metrics"
-
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	log "k8s.io/klog/v2"
@@ -25,6 +24,7 @@ type Worker struct {
 
 	mu            sync.RWMutex
 	MetricsBuffer []metrics.Anodot20Metric
+	flushBuffer   chan bool
 	Debug         bool
 }
 
@@ -94,7 +94,7 @@ func NewWorker(metricsSubmitter metrics.Submitter, workersLimit int64, debug boo
 		return nil, fmt.Errorf("workersLimit should be > 0")
 	}
 
-	worker := &Worker{metricsSubmitter: metricsSubmitter, Max: workersLimit, MetricsBuffer: make([]metrics.Anodot20Metric, 0, 100000), Debug: debug}
+	worker := &Worker{metricsSubmitter: metricsSubmitter, Max: workersLimit, MetricsBuffer: make([]metrics.Anodot20Metric, 0, 100000), Debug: debug, flushBuffer: make(chan bool)}
 
 	metricsPerRequestStr := os.Getenv("ANODOT_METRICS_PER_REQUEST_SIZE")
 	if len(strings.TrimSpace(metricsPerRequestStr)) != 0 {
@@ -115,11 +115,11 @@ func NewWorker(metricsSubmitter metrics.Submitter, workersLimit int64, debug boo
 
 	go func(w *Worker) {
 		for {
+			<-w.flushBuffer
 			buffSize := w.BufferSize()
 
 			bufferedMetrics.WithLabelValues(w.metricsSubmitter.AnodotURL().Host).Set(float64(buffSize))
-			if buffSize >= w.metricsPerRequest {
-				// need to wait until buffer will have enough elements to send
+			for w.BufferSize() >= w.metricsPerRequest {
 				metricsToSend := make([]metrics.Anodot20Metric, w.metricsPerRequest)
 
 				w.mu.Lock()
@@ -149,6 +149,7 @@ func NewWorker(metricsSubmitter metrics.Submitter, workersLimit int64, debug boo
 var mutex = &sync.Mutex{}
 
 func (w *Worker) Do(data []metrics.Anodot20Metric) {
+	//TODO check if we need this mutex
 	mutex.Lock()
 	defer mutex.Unlock()
 
@@ -164,6 +165,10 @@ func (w *Worker) Do(data []metrics.Anodot20Metric) {
 	w.mu.Lock()
 	w.MetricsBuffer = append(w.MetricsBuffer, data...)
 	w.mu.Unlock()
+
+	if w.BufferSize() > w.metricsPerRequest {
+		w.flushBuffer <- true
+	}
 }
 
 func (w *Worker) pushMetrics(metricsSubmitter metrics.Submitter, metricsToSend []metrics.Anodot20Metric) {

@@ -283,7 +283,7 @@ func randomMetrics(size int) []metrics.Anodot20Metric {
 }
 
 func waitWorkers(w *Worker, excpected int64) {
-	for {
+	for start := time.Now(); time.Since(start) < 2*time.Second; {
 		if atomic.LoadInt64(&w.Current) == excpected {
 			return
 		}

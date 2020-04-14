@@ -6,6 +6,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/testutil"
 	"net/http"
 	"strings"
+	"sync/atomic"
 
 	"io/ioutil"
 	"log"
@@ -56,16 +57,20 @@ func TestMetricsShouldBeBuffered(t *testing.T) {
 
 	// 1000 metrics should be sent, so 100+800+600-1000=500
 	worker.Do(allMetrics[900:1500])
+	waitWorkers(worker, 1)
+	waitWorkers(worker, 0)
 	if len(worker.MetricsBuffer) != 500 {
-		t.Fatal("metrics should be saved in buffer")
+		t.Fatalf("metrics should be saved in buffer. Current buffer size is %d", len(worker.MetricsBuffer))
 	}
 	if !sort.IsSorted(byTimestamp(worker.MetricsBuffer)) {
 		t.Fatal("metrics in buffer should be sorted by time ASC")
 	}
 
 	worker.Do(allMetrics[1500:2000])
+	waitWorkers(worker, 1)
+	waitWorkers(worker, 0)
 	if len(worker.MetricsBuffer) != 0 {
-		t.Fatal("metrics should be saved in buffer")
+		t.Fatalf("metrics should be saved in buffer. Current buffer size is %d", len(worker.MetricsBuffer))
 	}
 }
 
@@ -173,13 +178,15 @@ func TestSubmitError(t *testing.T) {
 			Errors:       nil,
 			HttpResponse: &http.Response{StatusCode: 500},
 		}, fmt.Errorf("error happened")
-	}}, 0, false)
+	}}, 1, false)
 
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	worker.Do(randomMetrics(10))
+	waitWorkers(worker, 1)
+	waitWorkers(worker, 0)
 	v := testutil.ToFloat64(anodotSubmitterErrors)
 	if v != 1 {
 		t.Fatal(fmt.Sprintf("Wrong error counter \n got: %f\n want: %f", v, float64(1)))
@@ -227,6 +234,8 @@ func TestSubmitErrorInReponse(t *testing.T) {
 	}
 
 	worker.Do(randomMetrics(10))
+	waitWorkers(worker, 1)
+	waitWorkers(worker, 0)
 	v := testutil.ToFloat64(anodotSubmitterErrors)
 	if v != 1 {
 		t.Fatal(fmt.Sprintf("Wrong error counter \n got: %f\n want: %f", v, float64(1)))
@@ -271,4 +280,12 @@ func randomMetrics(size int) []metrics.Anodot20Metric {
 	}
 
 	return data
+}
+
+func waitWorkers(w *Worker, excpected int64) {
+	for start := time.Now(); time.Since(start) < 2*time.Second; {
+		if atomic.LoadInt64(&w.Current) == excpected {
+			return
+		}
+	}
 }

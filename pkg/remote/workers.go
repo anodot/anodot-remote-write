@@ -20,14 +20,24 @@ type Worker struct {
 
 	metricsPerRequest int
 
-	Max           int64
-	Current       int64
+	Max     int64
+	Current int64
+
+	mu            sync.RWMutex
 	MetricsBuffer []metrics.Anodot20Metric
 	Debug         bool
 }
 
 func (w *Worker) String() string {
 	return fmt.Sprintf("Anodot URL='%s'", w.metricsSubmitter.AnodotURL().Host)
+}
+
+func (w *Worker) BufferSize() int {
+	w.mu.RLock()
+	size := len(w.MetricsBuffer)
+	w.mu.RUnlock()
+
+	return size
 }
 
 var labels = []string{"anodot_url"}
@@ -103,50 +113,57 @@ func NewWorker(metricsSubmitter metrics.Submitter, workersLimit int64, debug boo
 
 	bufferSize.WithLabelValues(worker.metricsSubmitter.AnodotURL().Host).Set(float64(len(worker.MetricsBuffer)))
 
+	go func(w *Worker) {
+		for {
+			buffSize := w.BufferSize()
+
+			bufferedMetrics.WithLabelValues(w.metricsSubmitter.AnodotURL().Host).Set(float64(buffSize))
+			if buffSize >= w.metricsPerRequest {
+				// need to wait until buffer will have enough elements to send
+				metricsToSend := make([]metrics.Anodot20Metric, w.metricsPerRequest)
+
+				w.mu.Lock()
+				copy(metricsToSend, w.MetricsBuffer[0:w.metricsPerRequest])
+				w.MetricsBuffer = append(w.MetricsBuffer[:0], w.MetricsBuffer[w.metricsPerRequest:]...)
+				w.mu.Unlock()
+
+				if w.Current >= w.Max {
+					concurrencyLimitReached.WithLabelValues(w.metricsSubmitter.AnodotURL().Host).Inc()
+					log.Warning("Reached workers concurrency limit. Sending metrics in single thread.")
+					w.pushMetrics(w.metricsSubmitter, metricsToSend)
+				} else {
+					go func() {
+						w.pushMetrics(w.metricsSubmitter, metricsToSend)
+					}()
+				}
+			}
+
+			bufferedMetrics.WithLabelValues(w.metricsSubmitter.AnodotURL().Host).Set(float64(buffSize))
+			concurrentWorkers.WithLabelValues(w.metricsSubmitter.AnodotURL().Host).Set(float64(atomic.LoadInt64(&w.Current)))
+		}
+	}(worker)
+
 	return worker, nil
 }
 
 var mutex = &sync.Mutex{}
 
 func (w *Worker) Do(data []metrics.Anodot20Metric) {
-
 	mutex.Lock()
 	defer mutex.Unlock()
 
+	log.V(4).Infof("Received (%d) metrics: ", len(data))
 	metricsReceivedTotal.Add(float64(len(data)))
 	if w.Debug {
-		log.V(4).Infof("Received (%d) metrics: ", len(data))
 		for i := 0; i < len(data); i++ {
 			log.V(5).Info((data)[i])
 		}
 		return
 	}
 
+	w.mu.Lock()
 	w.MetricsBuffer = append(w.MetricsBuffer, data...)
-	bufferedMetrics.WithLabelValues(w.metricsSubmitter.AnodotURL().Host).Set(float64(len(w.MetricsBuffer)))
-
-	log.V(4).Infof("Buffer size is %d", len(w.MetricsBuffer))
-	if len(w.MetricsBuffer) < w.metricsPerRequest {
-		// need to wait until buffer will have enough elements to send
-		return
-	}
-
-	metricsToSend := make([]metrics.Anodot20Metric, w.metricsPerRequest)
-
-	copy(metricsToSend, w.MetricsBuffer[0:w.metricsPerRequest])
-	w.MetricsBuffer = append(w.MetricsBuffer[:0], w.MetricsBuffer[w.metricsPerRequest:]...)
-	bufferedMetrics.WithLabelValues(w.metricsSubmitter.AnodotURL().Host).Set(float64(len(w.MetricsBuffer)))
-
-	concurrentWorkers.WithLabelValues(w.metricsSubmitter.AnodotURL().Host).Set(float64(w.Current))
-	if w.Current >= w.Max {
-		concurrencyLimitReached.WithLabelValues(w.metricsSubmitter.AnodotURL().Host).Inc()
-		log.Warning("Reached workers concurrency limit. Sending metrics in single thread.")
-		w.pushMetrics(w.metricsSubmitter, metricsToSend)
-	} else {
-		go func() {
-			w.pushMetrics(w.metricsSubmitter, metricsToSend)
-		}()
-	}
+	w.mu.Unlock()
 }
 
 func (w *Worker) pushMetrics(metricsSubmitter metrics.Submitter, metricsToSend []metrics.Anodot20Metric) {

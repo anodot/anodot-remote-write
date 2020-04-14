@@ -4,7 +4,7 @@ GOFLAGS=-mod=vendor
 GOARCH := amd64
 GOOS := linux
 
-GOLINT_VERSION:=1.23.1
+GOLINT_VERSION:=1.24.0
 
 BUILD_FLAGS = GO111MODULE=on CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) GOFLAGS=$(GOFLAGS)
 APPLICATION_NAME := anodot-prometheus-remote-write
@@ -15,9 +15,9 @@ PREVIOUS_VERSION := $(shell git show HEAD:pkg/version/version.go | grep 'VERSION
 GIT_COMMIT := $(shell git describe --dirty --always)
 
 all: clean format vet test build build-container test-container
-publish-container: clean format vet test build build-container test-container push-container
+publish-container: clean format vet test build build-container test-all push-container
 lint: check-formatting errorcheck vet
-test-all: test build build-container test-container
+test-all: test build build-container test-container e2e
 
 clean:
 	@rm -rf $(APPLICATION_NAME)

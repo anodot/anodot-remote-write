@@ -23,8 +23,6 @@ type Worker struct {
 	Max     int64
 	Current int64
 
-	ch chan []metrics.Anodot20Metric
-
 	mu            sync.RWMutex
 	MetricsBuffer []metrics.Anodot20Metric
 	Debug         bool
@@ -96,7 +94,7 @@ func NewWorker(metricsSubmitter metrics.Submitter, workersLimit int64, debug boo
 		return nil, fmt.Errorf("workersLimit should be > 0")
 	}
 
-	worker := &Worker{metricsSubmitter: metricsSubmitter, Max: workersLimit, MetricsBuffer: make([]metrics.Anodot20Metric, 0, 100000), Debug: debug, ch: make(chan []metrics.Anodot20Metric, 100)}
+	worker := &Worker{metricsSubmitter: metricsSubmitter, Max: workersLimit, MetricsBuffer: make([]metrics.Anodot20Metric, 0, 100000), Debug: debug}
 
 	metricsPerRequestStr := os.Getenv("ANODOT_METRICS_PER_REQUEST_SIZE")
 	if len(strings.TrimSpace(metricsPerRequestStr)) != 0 {
@@ -129,26 +127,19 @@ func NewWorker(metricsSubmitter metrics.Submitter, workersLimit int64, debug boo
 				w.MetricsBuffer = append(w.MetricsBuffer[:0], w.MetricsBuffer[w.metricsPerRequest:]...)
 				w.mu.Unlock()
 
-				w.ch <- metricsToSend
+				if w.Current >= w.Max {
+					concurrencyLimitReached.WithLabelValues(w.metricsSubmitter.AnodotURL().Host).Inc()
+					log.Warning("Reached workers concurrency limit. Sending metrics in single thread.")
+					w.pushMetrics(w.metricsSubmitter, metricsToSend)
+				} else {
+					go func() {
+						w.pushMetrics(w.metricsSubmitter, metricsToSend)
+					}()
+				}
 			}
 
 			bufferedMetrics.WithLabelValues(w.metricsSubmitter.AnodotURL().Host).Set(float64(buffSize))
 			concurrentWorkers.WithLabelValues(w.metricsSubmitter.AnodotURL().Host).Set(float64(atomic.LoadInt64(&w.Current)))
-		}
-	}(worker)
-
-	go func(w *Worker) {
-		for {
-			data := <-w.ch
-			if w.Current >= w.Max {
-				concurrencyLimitReached.WithLabelValues(w.metricsSubmitter.AnodotURL().Host).Inc()
-				log.Warning("Reached workers concurrency limit. Sending metrics in single thread.")
-				w.pushMetrics(w.metricsSubmitter, data)
-			} else {
-				go func() {
-					w.pushMetrics(w.metricsSubmitter, data)
-				}()
-			}
 		}
 	}(worker)
 

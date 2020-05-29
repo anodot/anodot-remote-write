@@ -11,6 +11,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	log "k8s.io/klog/v2"
+	"net/http"
+	_ "net/http/pprof"
 	"net/url"
 	"os"
 	"runtime"
@@ -66,7 +68,7 @@ func main() {
 
 		mirrorURL, err := url.Parse(*murl)
 		if err != nil {
-			log.Fatalf("Failed to construct anodot server url with url=%q. Error:%s", *murl, err.Error())
+			log.Fatalf("Failed to construct Anodot server url with url=%q. Error:%s", *murl, err.Error())
 		}
 
 		mirrorSubmitter, err = metrics2.NewAnodot20Client(mirrorURL.String(), *mtoken, nil)
@@ -79,7 +81,16 @@ func main() {
 	log.V(4).Infof("Metric tags: %s", tags)
 	parser, err := anodotPrometheus.NewAnodotParser(filterIn, filterOut, tags)
 	if err != nil {
-		log.Fatalf("Failed to initialize anodot parser. Error: %s", err.Error())
+		log.Fatalf("Failed to initialize Anodot parser. Error: %s", err.Error())
+	}
+
+	relabelConfigPath := os.Getenv("ANODOT_RELABEL_CONFIG_PATH")
+	if len(strings.TrimSpace(relabelConfigPath)) > 0 {
+		relabel, err := anodotPrometheus.NewMetricRelabel(relabelConfigPath)
+		if err != nil {
+			log.Fatal(err)
+		}
+		parser.MetricsProcessors = append(parser.MetricsProcessors, relabel)
 	}
 
 	if len(strings.TrimSpace(os.Getenv("K8S_RELABEL_SERVICE_URL"))) > 0 {
@@ -112,10 +123,19 @@ func main() {
 
 	primaryUrl, err := url.Parse(*serverUrl)
 	if err != nil {
-		log.Fatalf("Failed to construct anodot server url with url=%q. Error:%s", *serverUrl, err.Error())
+		log.Fatalf("Failed to construct Anodot server url with url=%q. Error:%s", *serverUrl, err.Error())
 	}
 
-	primarySubmitter, err := metrics2.NewAnodot20Client(primaryUrl.String(), token, nil)
+	defaultTransport := http.DefaultTransport.(*http.Transport)
+	defaultTransport.MaxIdleConnsPerHost = 1024
+	defaultTransport.MaxIdleConns = 2048
+	defaultTransport.IdleConnTimeout = 30 * time.Second
+	client := &http.Client{
+		Transport: defaultTransport,
+		Timeout:   30 * time.Second,
+	}
+
+	primarySubmitter, err := metrics2.NewAnodot20Client(primaryUrl.String(), token, client)
 	if err != nil {
 		log.Fatalf("Failed to create Anodot metrics submitter: %s", err.Error())
 	}
@@ -128,7 +148,6 @@ func main() {
 	if err != nil {
 		log.Fatal("Failed to create worker: ", err.Error())
 	}
-
 	allWorkers := make([]*remote.Worker, 0)
 	allWorkers = append(allWorkers, primaryWorker)
 

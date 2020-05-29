@@ -8,7 +8,11 @@ remote_write:
       - source_labels: [anodot_include]
         regex: 'true'
         action: keep
-      - regex: 'anodot_include'
+      - source_labels: [job]
+        regex:         (.*)
+        target_label:  anodot_tag_job
+        replacement:   ${1}
+      - regex: '(job)'
         action: labeldrop
     queue_config:
       batch_send_deadline: 1s
@@ -25,7 +29,3 @@ scrape_configs:
         regex: '(exported_http_requests_total|exported_version)'
         replacement: 'true'
         target_label: 'anodot_include'
-      - source_labels: [job]
-        regex:         (.*)
-        target_label:  anodot_tag_job_name
-        replacement:   tag-${1}

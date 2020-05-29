@@ -1,0 +1,5 @@
+relabel_configs:
+  - source_labels: [__name__]
+    regex: '(.*)'
+    target_label: relabled_value
+    replacement: 'added-after-relabel'

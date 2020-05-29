@@ -472,6 +472,46 @@ func TestPodNameChangeCachePresent(t *testing.T) {
 	}
 }
 
+func TestConfigDropLabels(t *testing.T) {
+	metricRelabel, err := NewMetricRelabel("./test_data/relabel_config.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	metric := model.Metric{}
+	metric[model.LabelName("__name__")] = "expensive-cassandra-metric"
+	metric[model.LabelName("pod_name")] = "cassandra-0"
+
+	metricRelabel.Mutate(metric)
+
+	if len(metric) != 0 {
+		t.Fatalf("metrics should be dropped")
+	}
+}
+
+func TestConfigAddLabels(t *testing.T) {
+	metricRelabel, err := NewMetricRelabel("./test_data/relabel_config.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	metric := model.Metric{}
+	metric[model.LabelName("__name__")] = "jvm-memory-used"
+	metric[model.LabelName("pod_name")] = "cassandra-0"
+
+	metricRelabel.Mutate(metric)
+
+	if len(metric) != 3 {
+		t.Fatalf("metric should have 3 labels")
+	}
+
+	expectedMetric := model.Metric{"__name__": "jvm-memory-used", "pod_name": "cassandra-0", "anodot_include": "true"}
+
+	if !reflect.DeepEqual(expectedMetric, metric) {
+		t.Fatal(fmt.Sprintf("Wrong tags \n got: %s\n want: %s", metric, expectedMetric))
+	}
+}
+
 func TestExtractTags(t *testing.T) {
 	parser, _ := NewAnodotParser(nil, nil, map[string]string{"static-key": "static-value"})
 

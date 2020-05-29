@@ -203,8 +203,8 @@ func TestMetricsData(t *testing.T) {
 	}
 
 	expectedTags := map[string]string{
-		"source":   "prometheus-remote-write",
-		"job_name": "tag-test-app",
+		"source": "prometheus-remote-write",
+		"job":    "test-app",
 	}
 
 	for _, m := range metrics {
@@ -213,11 +213,12 @@ func TestMetricsData(t *testing.T) {
 		case "exported_http_requests_total":
 
 			expectedProperties := map[string]string{
-				"code":     "200",
-				"instance": "anodot-metrics-stub:8080",
-				"job":      "test-app",
-				"method":   "get",
-				"what":     "exported_http_requests_total",
+				"code":           "200",
+				"instance":       "anodot-metrics-stub:8080",
+				"method":         "get",
+				"anodot_include": "true",
+				"what":           "exported_http_requests_total",
+				"relabled_value": "added-after-relabel",
 			}
 
 			expectedValue := float64(1)
@@ -236,10 +237,11 @@ func TestMetricsData(t *testing.T) {
 
 		case "exported_version":
 			expectedProperties := map[string]string{
-				"instance": "anodot-metrics-stub:8080",
-				"job":      "test-app",
-				"version":  "v0_1_0",
-				"what":     "exported_version",
+				"instance":       "anodot-metrics-stub:8080",
+				"version":        "v0_1_0",
+				"anodot_include": "true",
+				"what":           "exported_version",
+				"relabled_value": "added-after-relabel",
 			}
 
 			expectedValue := 0.1

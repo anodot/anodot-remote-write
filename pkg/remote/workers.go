@@ -22,10 +22,13 @@ type Worker struct {
 	Max     int64
 	Current int64
 
+	maxAllowedEPS int
+
 	mu            sync.RWMutex
 	MetricsBuffer []metrics.Anodot20Metric
 	flushBuffer   chan bool
-	Debug         bool
+
+	Debug bool
 }
 
 func (w *Worker) String() string {
@@ -38,6 +41,14 @@ func (w *Worker) BufferSize() int {
 	w.mu.RUnlock()
 
 	return size
+}
+
+func (w *Worker) LastTimestamp() time.Time {
+	w.mu.RLock()
+	res := w.MetricsBuffer[len(w.MetricsBuffer)-1].Timestamp
+	w.mu.RUnlock()
+
+	return res.Time
 }
 
 var labels = []string{"anodot_url"}
@@ -83,6 +94,11 @@ var (
 		Name: "anodot_server_http_responses_total",
 		Help: "Total number of HTTP responses of Anodot server",
 	}, []string{"anodot_url", "response_code"})
+
+	throttlingTime = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "anodot_workers_throttle_time_ms",
+		Help: "Anodot workers time throttled",
+	}, labels)
 )
 
 func NewWorker(metricsSubmitter metrics.Submitter, workersLimit int64, debug bool) (*Worker, error) {
@@ -94,8 +110,17 @@ func NewWorker(metricsSubmitter metrics.Submitter, workersLimit int64, debug boo
 		return nil, fmt.Errorf("workersLimit should be > 0")
 	}
 
-	// 20 - amount of batches to send to Anodot system
-	worker := &Worker{metricsSubmitter: metricsSubmitter, Max: workersLimit, MetricsBuffer: make([]metrics.Anodot20Metric, 0, 100000), Debug: debug, flushBuffer: make(chan bool, 20)}
+	maxEPSString := os.Getenv("ANODOT_MAX_ALLOWED_EPS")
+	maxAllowedEps := 0
+	if len(strings.TrimSpace(maxEPSString)) > 0 {
+		var err error
+		maxAllowedEps, err = strconv.Atoi(maxEPSString)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	worker := &Worker{metricsSubmitter: metricsSubmitter, Max: workersLimit, MetricsBuffer: make([]metrics.Anodot20Metric, 0, 100000), Debug: debug, maxAllowedEPS: maxAllowedEps, flushBuffer: make(chan bool, 50)}
 
 	metricsPerRequestStr := os.Getenv("ANODOT_METRICS_PER_REQUEST_SIZE")
 	if len(strings.TrimSpace(metricsPerRequestStr)) != 0 {
@@ -103,6 +128,10 @@ func NewWorker(metricsSubmitter metrics.Submitter, workersLimit int64, debug boo
 		if e == nil {
 			worker.metricsPerRequest = v
 		}
+	}
+
+	if maxAllowedEps != 0 && maxAllowedEps < worker.metricsPerRequest {
+		return nil, fmt.Errorf("ANODOT_MAX_ALLOWED_EPS should be grather than ANODOT_METRICS_PER_REQUEST_SIZE")
 	}
 
 	if worker.metricsPerRequest <= 0 {
@@ -114,13 +143,25 @@ func NewWorker(metricsSubmitter metrics.Submitter, workersLimit int64, debug boo
 
 	bufferSize.WithLabelValues(worker.metricsSubmitter.AnodotURL().Host).Set(float64(len(worker.MetricsBuffer)))
 
+	var throttle <-chan time.Time
+	if worker.maxAllowedEPS > 0 {
+		duration := time.Duration(1e6/(maxAllowedEps/worker.metricsPerRequest)) * time.Microsecond
+		log.V(2).Infof("Throttling interval is: %s", duration.String())
+		throttle = time.Tick(duration)
+	}
+
 	go func(w *Worker) {
 		for {
 			<-w.flushBuffer
-			buffSize := w.BufferSize()
-
-			bufferedMetrics.WithLabelValues(w.metricsSubmitter.AnodotURL().Host).Set(float64(buffSize))
+			bufferedMetrics.WithLabelValues(w.metricsSubmitter.AnodotURL().Host).Set(float64(w.BufferSize()))
 			for w.BufferSize() >= w.metricsPerRequest {
+
+				if w.maxAllowedEPS > 0 {
+					start := time.Now()
+					<-throttle
+					throttlingTime.WithLabelValues(w.metricsSubmitter.AnodotURL().Host).Add(float64(time.Now().Sub(start).Milliseconds()))
+				}
+
 				metricsToSend := make([]metrics.Anodot20Metric, w.metricsPerRequest)
 
 				w.mu.Lock()
@@ -139,7 +180,7 @@ func NewWorker(metricsSubmitter metrics.Submitter, workersLimit int64, debug boo
 				}
 			}
 
-			bufferedMetrics.WithLabelValues(w.metricsSubmitter.AnodotURL().Host).Set(float64(buffSize))
+			bufferedMetrics.WithLabelValues(w.metricsSubmitter.AnodotURL().Host).Set(float64(w.BufferSize()))
 			concurrentWorkers.WithLabelValues(w.metricsSubmitter.AnodotURL().Host).Set(float64(atomic.LoadInt64(&w.Current)))
 		}
 	}(worker)

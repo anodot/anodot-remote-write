@@ -35,10 +35,10 @@ var (
 		Help: "Number of times metrics value was not accepted",
 	})
 
-	k8sRelablingDropped = promauto.NewCounter(prometheus.CounterOpts{
-		Name: "anodot_parser_kubernetes_relabling_metrics_dropped",
-		Help: "Number of metrics dropped after ",
-	})
+	relablingDropped = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "anodot_parser_relabling_metrics_dropped",
+		Help: "Number of metrics dropped after applying relabeling",
+	}, []string{"metrics_processor"})
 )
 
 var StatefulPodRegex = regexp.MustCompile("(.*)-([0-9]+)$")
@@ -57,8 +57,11 @@ func (k *KubernetesPodNameProcessor) Name() string {
 }
 
 //TODO what to do if pod and pod_name defined ?
-
 func (k *KubernetesPodNameProcessor) Mutate(prometheusMetric model.Metric) {
+	if prometheusMetric == nil {
+		return
+	}
+
 	metricName := prometheusMetric[model.MetricNameLabel]
 
 	_, podLabelExists := prometheusMetric["pod"]
@@ -129,6 +132,7 @@ func (k *KubernetesPodNameProcessor) Mutate(prometheusMetric model.Metric) {
 type AnodotParser struct {
 	FilterOutProperties map[string]string `json:"fop"`
 	FilterInProperties  map[string]string `json:"fip"`
+	FilterConfig        *Config
 
 	// Anodot Metrics tags that will be assigned to all metrics.
 	// https://support.anodot.com/hc/en-us/articles/360020259354-Posting-2-0-Metrics-
@@ -162,19 +166,15 @@ func NewAnodotParser(filterIn *string, filterOut *string, tags map[string]string
 }
 
 func (p *AnodotParser) extractTags(prometheusMetric model.Metric) map[string]string {
-	res := make(map[string]string)
+	res := make(map[string]string, len(prometheusMetric))
 	for k, v := range p.Tags {
 		res[k] = v
 	}
 
+	//convert labels to tags
 	for k, v := range prometheusMetric {
 		if strings.HasPrefix(string(k), anodotTagLabelPrefix) {
 			res[strings.TrimPrefix(string(k), anodotTagLabelPrefix)] = string(v)
-		}
-	}
-
-	for k := range prometheusMetric {
-		if strings.HasPrefix(string(k), anodotTagLabelPrefix) {
 			delete(prometheusMetric, k)
 		}
 	}
@@ -222,7 +222,9 @@ func (p *AnodotParser) filter(metrics *[]metrics.Anodot20Metric, metric *metrics
 func (p *AnodotParser) ParsePrometheusRequest(samples model.Samples) []metrics.Anodot20Metric {
 	result := make([]metrics.Anodot20Metric, 0)
 
+SAMPLES:
 	for _, r := range samples {
+
 		var metric metrics.Anodot20Metric
 
 		metric.Timestamp = metrics.AnodotTimestamp{Time: r.Timestamp.Time()}
@@ -236,18 +238,17 @@ func (p *AnodotParser) ParsePrometheusRequest(samples model.Samples) []metrics.A
 
 		if len(r.Metric) > maxNumberOfProperties {
 			metricsPropertiesSizeExceeded.Inc()
-			log.Warningf("Metric is skipped. Numer of lables=%d is more that allowed(%d). %s", len(r.Metric), maxNumberOfProperties, r)
+			log.Warningf("Metric is skipped. Number of lables=%d is more that allowed(%d). %s", len(r.Metric), maxNumberOfProperties, r)
 			continue
 		}
 
 		for _, processor := range p.MetricsProcessors {
 			processor.Mutate(r.Metric)
-		}
 
-		if len(r.Metric) == 0 {
-			k8sRelablingDropped.Inc()
-			log.Warningf("dropping empty metric %q", r.Metric[model.MetricNameLabel])
-			continue
+			if len(r.Metric) == 0 {
+				relablingDropped.WithLabelValues(processor.Name()).Inc()
+				continue SAMPLES
+			}
 		}
 
 		labels := make(model.LabelNames, 0, len(r.Metric))
@@ -277,16 +278,6 @@ func (p *AnodotParser) ParsePrometheusRequest(samples model.Samples) []metrics.A
 
 			if l == model.MetricNameLabel {
 				metric.Properties[whatPropertyName] = string(v)
-				//Should be managed on prometheus config
-				/*if strings.HasSuffix(metric.Properties[WHAT_PROPERTY],"_total") {
-					metric.Properties[TARGET_TYPE] = COUNTER
-				}else
-				if strings.HasSuffix(metric.Properties[WHAT_PROPERTY],"_sum") {
-					metric.Properties[TARGET_TYPE] = COUNTER
-				}else
-				if strings.HasSuffix(metric.Properties[WHAT_PROPERTY],"_count") {
-					metric.Properties[TARGET_TYPE] = COUNTER
-				}*/
 				continue
 			}
 			metric.Properties[string(l)] = string(v)

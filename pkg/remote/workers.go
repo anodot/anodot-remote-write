@@ -199,7 +199,7 @@ func NewWorker(metricsSubmitter metrics.Submitter, config *WorkerConfig) (*Worke
 				w.MetricsBuffer = append(w.MetricsBuffer[:0], w.MetricsBuffer[chunkSize:]...)
 				w.mu.Unlock()
 
-				if w.currentWorkers >= w.MaxWorkers {
+				if atomic.LoadInt64(&w.currentWorkers) >= w.MaxWorkers {
 					concurrencyLimitReached.WithLabelValues(w.metricsSubmitter.AnodotURL().Host).Inc()
 					log.Warning("Reached workers concurrency limit. Sending metrics in single thread.")
 					w.pushMetrics(w.metricsSubmitter, metricsToSend)

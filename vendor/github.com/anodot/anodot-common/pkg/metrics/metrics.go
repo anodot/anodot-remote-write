@@ -12,6 +12,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"io"
 	"time"
 )
 
@@ -182,6 +183,14 @@ func (s *Anodot20Client) SubmitMetrics(metrics []Anodot20Metric) (AnodotResponse
 	r.Header.Add("Content-Type", "application/json")
 
 	resp, err := s.client.Do(r)
+	defer func() {
+		io.Copy(ioutil.Discard, resp.Body)
+		err = resp.Body.Close()
+		if err != nil {
+			fmt.Printf("failed to close response body: %s", err.Error())
+		}
+	}()
+
 	anodotResponse := &CreateResponse{HttpResponse: resp}
 	if err != nil {
 		return anodotResponse, err

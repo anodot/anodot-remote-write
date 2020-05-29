@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httputil"
@@ -188,13 +187,6 @@ func (s *Anodot20Client) SubmitMetrics(metrics []Anodot20Metric) (AnodotResponse
 		return anodotResponse, err
 	}
 
-	defer func() {
-		io.Copy(ioutil.Discard, resp.Body)
-		err = resp.Body.Close()
-		if err != nil {
-			fmt.Printf("failed to close response body: %s", err.Error())
-		}
-	}()
 	if resp.StatusCode != 200 {
 		return anodotResponse, fmt.Errorf("http error: %d", resp.StatusCode)
 	}

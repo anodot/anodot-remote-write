@@ -5,6 +5,7 @@ import (
 	"github.com/prometheus/common/model"
 	"io"
 	"io/ioutil"
+	log "k8s.io/klog/v2"
 	"net/http"
 	"os"
 	"strings"
@@ -38,7 +39,8 @@ func FetchMetrics(url string, retries int, timeout time.Duration) ([]*model.Samp
 	}
 
 	defer func() {
-		io.Copy(ioutil.Discard, response.Body)
+		_, err := io.Copy(ioutil.Discard, response.Body)
+		log.Error(err)
 		_ = response.Body.Close()
 	}()
 

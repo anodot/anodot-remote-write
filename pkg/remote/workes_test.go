@@ -19,11 +19,14 @@ import (
 )
 
 func TestMetricsShouldBeBuffered(t *testing.T) {
-	expectedMetricsPerRequestSize := 1000
+	expectedMetricsPerRequestSize := map[int]int{1: 1000, 2: 500}
 
+	requestNumber := 0
 	mockSubmitter := &MockSubmitter{f: func(data []metrics.Anodot20Metric) (metrics.AnodotResponse, error) {
-		if len(data) != expectedMetricsPerRequestSize {
-			t.Errorf(fmt.Sprintf("Submitted metreics size is %d. Required size is: %d", len(data), 1000))
+		requestNumber++
+		expectedMetricsSize := expectedMetricsPerRequestSize[requestNumber]
+		if len(data) != expectedMetricsSize {
+			t.Errorf(fmt.Sprintf("Submitted metrics size is %d. Required size is: %d", len(data), expectedMetricsSize))
 		}
 
 		if !sort.IsSorted(byTimestamp(data)) {
@@ -32,14 +35,19 @@ func TestMetricsShouldBeBuffered(t *testing.T) {
 		return nil, nil
 	}}
 
-	worker, err := NewWorker(mockSubmitter, 0, false)
+	config, err := NewWorkerConfig()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	//nothing should be send here, only saved in buffer
+	worker, err := NewWorker(mockSubmitter, config)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	allMetrics := randomMetrics(2000)
 
+	//nothing should be send here, only saved in buffer
 	worker.Do(allMetrics[0:100])
 	if len(worker.MetricsBuffer) != 100 {
 		t.Fatal("metrics should be saved in buffer")
@@ -55,22 +63,16 @@ func TestMetricsShouldBeBuffered(t *testing.T) {
 		t.Fatal("metrics in buffer should be sorted by time ASC")
 	}
 
-	// 1000 metrics should be sent, so 100+800+600-1000=500
-	worker.Do(allMetrics[900:1500])
-	waitWorkers(worker, 1)
-	waitWorkers(worker, 0)
-	if len(worker.MetricsBuffer) != 500 {
-		t.Fatalf("metrics should be saved in buffer. Current buffer size is %d", len(worker.MetricsBuffer))
-	}
 	if !sort.IsSorted(byTimestamp(worker.MetricsBuffer)) {
 		t.Fatal("metrics in buffer should be sorted by time ASC")
 	}
 
-	worker.Do(allMetrics[1500:2000])
-	waitWorkers(worker, 1)
+	// all metrics which were accumulated before - should be sent, once buffer has reached capacity
+	worker.Do(allMetrics[900:1500])
+	waitWorkers(worker, 2)
 	waitWorkers(worker, 0)
 	if len(worker.MetricsBuffer) != 0 {
-		t.Fatalf("metrics should be saved in buffer. Current buffer size is %d", len(worker.MetricsBuffer))
+		t.Fatalf("empty buffer expcted")
 	}
 }
 
@@ -91,8 +93,11 @@ func TestToString(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-
-	worker, e := NewWorker(anodot20Submitter, 20, false)
+	config, err := NewWorkerConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+	worker, e := NewWorker(anodot20Submitter, config)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -125,20 +130,27 @@ func TestMetricsPerRequestEnvConfigurationIncorrect(t *testing.T) {
 					t.Fatal(err)
 				}
 
-				worker, e := NewWorker(MockSubmitter{}, 20, false)
+				config, err := NewWorkerConfig()
+				if err != nil {
+					if v.isValid {
+						t.Fatal(err)
+					}
+				}
+
+				worker, e := NewWorker(MockSubmitter{}, config)
 				if e != nil {
 					t.Fatal(e)
 				}
 
 				if v.isValid {
 					n, _ := strconv.Atoi(v.envValue)
-					if worker.metricsPerRequest != n {
-						t.Fatal(fmt.Sprintf("Wrong metricsPerRequest size \n got: %d\n want: %d", worker.metricsPerRequest, 1000))
+					if worker.MetricsPerRequestSize != n {
+						t.Fatal(fmt.Sprintf("Wrong metricsPerRequest size \n got: %d\n want: %d", worker.MetricsPerRequestSize, n))
 					}
 				} else {
 					//should fallback to default value
-					if worker.metricsPerRequest != 1000 {
-						t.Fatal(fmt.Sprintf("Wrong default metricsPerRequest size \n got: %d\n want: %d", worker.metricsPerRequest, 1000))
+					if worker.MetricsPerRequestSize != 1000 {
+						t.Fatal(fmt.Sprintf("Wrong default metricsPerRequest size \n got: %d\n want: %d", worker.MetricsPerRequestSize, 1000))
 					}
 				}
 			})
@@ -146,7 +158,11 @@ func TestMetricsPerRequestEnvConfigurationIncorrect(t *testing.T) {
 }
 
 func TestNewWorkerSubmitterNil(t *testing.T) {
-	worker, err := NewWorker(nil, 300, false)
+	config, err := NewWorkerConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+	worker, err := NewWorker(nil, config)
 
 	if worker != nil {
 		t.Fatalf("worker should be nill")
@@ -157,28 +173,37 @@ func TestNewWorkerSubmitterNil(t *testing.T) {
 	}
 }
 
-func TestNewWorkerMaxWorkersNegative(t *testing.T) {
-	worker, err := NewWorker(MockSubmitter{}, -100, false)
+/*func TestNewWorkerMaxWorkersNegative(t *testing.T) {
+	config, err := NewWorkerConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
 
+	worker, err := NewWorker(MockSubmitter{}, config)
 	if worker != nil {
-		t.Fatalf("worker should be nill")
+		t.Fatalf("worker should be nil")
 	}
 
 	if err.Error() != "workersLimit should be > 0" {
 		t.Fatal(fmt.Sprintf("Wrong error message \n got: %q\n want: %q", err.Error(), "workersLimit should be > 0"))
 	}
-}
+}*/
 
 func TestSubmitError(t *testing.T) {
 	anodotSubmitterErrors.Reset()
 	_ = os.Setenv("ANODOT_METRICS_PER_REQUEST_SIZE", "10")
+
+	config, err := NewWorkerConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	worker, err := NewWorker(MockSubmitter{f: func(anodot20Metrics []metrics.Anodot20Metric) (response metrics.AnodotResponse, e error) {
 		return &metrics.CreateResponse{
 			Errors:       nil,
 			HttpResponse: &http.Response{StatusCode: 500},
 		}, fmt.Errorf("error happened")
-	}}, 1, false)
+	}}, config)
 
 	if err != nil {
 		t.Fatal(err)
@@ -214,6 +239,11 @@ func TestSubmitErrorInReponse(t *testing.T) {
 
 	_ = os.Setenv("ANODOT_METRICS_PER_REQUEST_SIZE", "10")
 
+	config, err := NewWorkerConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	worker, err := NewWorker(MockSubmitter{f: func(anodot20Metrics []metrics.Anodot20Metric) (response metrics.AnodotResponse, e error) {
 
 		anodotResponse := &metrics.CreateResponse{
@@ -227,7 +257,7 @@ func TestSubmitErrorInReponse(t *testing.T) {
 
 		return anodotResponse, fmt.Errorf(anodotResponse.ErrorMessage())
 
-	}}, 0, false)
+	}}, config)
 
 	if err != nil {
 		t.Fatal(err)
@@ -251,7 +281,12 @@ func TestNoMetricsSendInDebugMode(t *testing.T) {
 		return nil, nil
 	}}
 
-	worker, err := NewWorker(mockSubmitter, 0, true)
+	config, err := NewWorkerConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	worker, err := NewWorker(mockSubmitter, config)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -284,7 +319,7 @@ func randomMetrics(size int) []metrics.Anodot20Metric {
 
 func waitWorkers(w *Worker, excpected int64) {
 	for start := time.Now(); time.Since(start) < 2*time.Second; {
-		if atomic.LoadInt64(&w.Current) == excpected {
+		if atomic.LoadInt64(&w.currentWorkers) == excpected {
 			return
 		}
 	}

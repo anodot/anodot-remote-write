@@ -38,7 +38,7 @@ func main() {
 	var serverUrl = flag.String("url", DEFAULT_ANODOT_URL, "Anodot server url. Example: 'https://api.anodot.com'")
 	var tokenFlagValue = flag.String("token", DEFAULT_TOKEN, "Account API Token")
 	var serverPort = flag.Int("sever", DEFAULT_PORT, "Prometheus Remote Port")
-	var workers = flag.Int64("workers", DEFAULT_NUMBER_OF_WORKERS, "Remote Write Workers -> Anodot")
+	var maxWorkers = flag.Int64("workers", DEFAULT_NUMBER_OF_WORKERS, "Remote Write Workers -> Anodot")
 	var filterOut = flag.String("filterOut", "", "Set an expression to remove metrics from stream")
 	var filterIn = flag.String("filterIn", "", "Set an expression to add to stream")
 	var murl = flag.String("murl", "", "Anodot Endpoint - Mirror")
@@ -52,7 +52,6 @@ func main() {
 	}
 
 	flag.Parse()
-
 	token := envOrFlag("ANODOT_API_TOKEN", tokenFlagValue)
 
 	log.Info(fmt.Sprintf("Anodot Remote Write version: '%s'. GitSHA: '%s'", version.VERSION, version.REVISION))
@@ -143,8 +142,20 @@ func main() {
 	//Actual server listening on port - serverPort
 	var s = anodotPrometheus.Receiver{Port: *serverPort, Parser: parser}
 
-	//Initializer -> listener, endpoints etc
-	primaryWorker, err := remote.NewWorker(primarySubmitter, *workers, *debug)
+	config, err := remote.NewWorkerConfig()
+	if err != nil {
+		log.Fatal("Failed to create worker config: ", err.Error())
+	}
+
+	if isFlagPassed("workers") {
+		config.MaxWorkers = *maxWorkers
+	}
+
+	if isFlagPassed("debug") {
+		config.Debug = *debug
+	}
+
+	primaryWorker, err := remote.NewWorker(primarySubmitter, config)
 	if err != nil {
 		log.Fatal("Failed to create worker: ", err.Error())
 	}
@@ -152,7 +163,7 @@ func main() {
 	allWorkers = append(allWorkers, primaryWorker)
 
 	if mirrorSubmitter != nil {
-		mirrorWorker, err := remote.NewWorker(mirrorSubmitter, *workers, *debug)
+		mirrorWorker, err := remote.NewWorker(mirrorSubmitter, config)
 		if err != nil {
 			log.Fatal("Failed to create mirror worker: ", err.Error())
 		}
@@ -183,4 +194,14 @@ func defaultIfBlank(actual string, fallback string) string {
 
 func envOrFlag(envVarName string, flagValue *string) string {
 	return defaultIfBlank(os.Getenv(envVarName), *flagValue)
+}
+
+func isFlagPassed(name string) bool {
+	found := false
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == name {
+			found = true
+		}
+	})
+	return found
 }

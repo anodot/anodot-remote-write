@@ -1,4 +1,4 @@
-package remote
+package utils
 
 import (
 	"github.com/prometheus/common/expfmt"

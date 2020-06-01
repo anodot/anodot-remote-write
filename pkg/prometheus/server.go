@@ -2,6 +2,7 @@ package prometheus
 
 import (
 	"fmt"
+	"github.com/anodot/anodot-remote-write/utils"
 	log "k8s.io/klog/v2"
 	"os"
 	"time"
@@ -70,7 +71,7 @@ func (rc *Receiver) InitHttp(workers []*remote.Worker) {
 		go func() {
 			ticker := time.NewTicker(60 * time.Second)
 			for range ticker.C {
-				samples, err := remote.FetchMetrics("http://127.0.0.1:1234/metrics", 3, time.Second*5)
+				samples, err := utils.FetchMetrics("http://127.0.0.1:1234/metrics", 3, time.Second*5)
 				if err != nil {
 					log.Errorf("failed to scrape own metrics endpoint. %s", err.Error())
 				}

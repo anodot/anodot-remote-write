@@ -35,6 +35,9 @@ func TestMetricsShouldBeBuffered(t *testing.T) {
 		return nil, nil
 	}}
 
+	os.Setenv("ANODOT_MAX_WORKERS_SIZE", "0")
+	defer os.Unsetenv("ANODOT_MAX_WORKERS_SIZE")
+
 	config, err := NewWorkerConfig()
 	if err != nil {
 		t.Fatal(err)

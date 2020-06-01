@@ -35,8 +35,14 @@ func TestMetricsShouldBeBuffered(t *testing.T) {
 		return nil, nil
 	}}
 
-	os.Setenv("ANODOT_MAX_WORKERS_SIZE", "0")
-	defer os.Unsetenv("ANODOT_MAX_WORKERS_SIZE")
+	err := os.Setenv("ANODOT_MAX_WORKERS_SIZE", "0")
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	defer func() {
+		err := os.Unsetenv("ANODOT_MAX_WORKERS_SIZE")
+		t.Fatalf(err.Error())
+	}()
 
 	config, err := NewWorkerConfig()
 	if err != nil {
@@ -175,22 +181,6 @@ func TestNewWorkerSubmitterNil(t *testing.T) {
 		t.Fatal(fmt.Sprintf("Wrong error message \n got: %q\n want: %q", err.Error(), "metrics submitter should not be nil"))
 	}
 }
-
-/*func TestNewWorkerMaxWorkersNegative(t *testing.T) {
-	config, err := NewWorkerConfig()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	worker, err := NewWorker(MockSubmitter{}, config)
-	if worker != nil {
-		t.Fatalf("worker should be nil")
-	}
-
-	if err.Error() != "workersLimit should be > 0" {
-		t.Fatal(fmt.Sprintf("Wrong error message \n got: %q\n want: %q", err.Error(), "workersLimit should be > 0"))
-	}
-}*/
 
 func TestSubmitError(t *testing.T) {
 	anodotSubmitterErrors.Reset()

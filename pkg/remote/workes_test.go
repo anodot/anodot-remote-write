@@ -35,13 +35,15 @@ func TestMetricsShouldBeBuffered(t *testing.T) {
 		return nil, nil
 	}}
 
-	err := os.Setenv("ANODOT_MAX_WORKERS_SIZE", "0")
+	err := os.Setenv("ANODOT_MAX_WORKERS", "0")
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
 	defer func() {
-		err := os.Unsetenv("ANODOT_MAX_WORKERS_SIZE")
-		t.Fatalf(err.Error())
+		err := os.Unsetenv("ANODOT_MAX_WORKERS")
+		if err != nil {
+			t.Fatalf(err.Error())
+		}
 	}()
 
 	config, err := NewWorkerConfig()
@@ -78,7 +80,11 @@ func TestMetricsShouldBeBuffered(t *testing.T) {
 
 	// all metrics which were accumulated before - should be sent, once buffer has reached capacity
 	worker.Do(allMetrics[900:1500])
-	waitWorkers(worker, 2)
+	//fist batch
+	waitWorkers(worker, 1)
+	waitWorkers(worker, 0)
+	//second batch
+	waitWorkers(worker, 1)
 	waitWorkers(worker, 0)
 	if len(worker.MetricsBuffer) != 0 {
 		t.Fatalf("empty buffer expcted")

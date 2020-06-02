@@ -376,7 +376,8 @@ func waitWorkers(w *Worker, excpected int64) {
 func unsetEnvVars() {
 	for _, v := range os.Environ() {
 		if strings.HasPrefix(v, "ANODOT_") {
-			os.Unsetenv(strings.Split(v, "=")[0])
+			err := os.Unsetenv(strings.Split(v, "=")[0])
+			println(err)
 		}
 	}
 }

@@ -5,11 +5,11 @@ import (
 	"github.com/anodot/anodot-common/pkg/metrics"
 	"github.com/prometheus/client_golang/prometheus/testutil"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"strings"
 	"sync/atomic"
 
+	log "k8s.io/klog/v2"
 	"net/url"
 	"os"
 	"sort"

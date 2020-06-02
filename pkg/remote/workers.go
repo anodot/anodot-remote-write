@@ -1,6 +1,7 @@
 package remote
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/anodot/anodot-common/pkg/metrics"
 	"github.com/kelseyhightower/envconfig"
@@ -232,13 +233,14 @@ func (w *Worker) Do(data []metrics.Anodot20Metric) {
 	mutex.Lock()
 	defer mutex.Unlock()
 
-	log.V(4).Infof("Received (%d) metrics: ", len(data))
+	log.V(4).Infof("Received (%d) metric(s): ", len(data))
 	metricsReceivedTotal.Add(float64(len(data)))
 	if w.Debug {
-		for i := 0; i < len(data); i++ {
-			//TODO make this log to file or stdout
-			log.V(5).Info((data)[i])
+		bytes, err := json.Marshal(data)
+		if err != nil {
+			log.Error("failed to display metrics:", err)
 		}
+		log.V(5).Info(string(bytes))
 		return
 	}
 

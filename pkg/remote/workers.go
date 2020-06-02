@@ -68,12 +68,16 @@ func (w *Worker) BufferSize() int {
 	return size
 }
 
-func (w *Worker) LastTimestamp() time.Time {
+func (w *Worker) LastTimestamp() *time.Time {
 	w.mu.RLock()
-	res := w.MetricsBuffer[len(w.MetricsBuffer)-1].Timestamp
-	w.mu.RUnlock()
+	defer w.mu.RUnlock()
 
-	return res.Time
+	if len(w.MetricsBuffer) == 0 {
+		return nil
+	}
+
+	res := w.MetricsBuffer[len(w.MetricsBuffer)-1].Timestamp
+	return &res.Time
 }
 
 var labels = []string{"anodot_url"}
@@ -164,7 +168,11 @@ func NewWorker(metricsSubmitter metrics.Submitter, config *WorkerConfig) (*Worke
 		ticker := time.NewTicker(w.BatchSendDeadline)
 		defer ticker.Stop()
 		for range ticker.C {
-			if time.Since(w.LastTimestamp()) > w.BatchSendDeadline {
+			timestamp := w.LastTimestamp()
+			if timestamp == nil {
+				continue
+			}
+			if time.Since(*timestamp) > w.BatchSendDeadline {
 				log.V(4).Infof("reached BatchSendDeadline of '%s'. Flushing metrics buffer", w.BatchSendDeadline.String())
 				w.flushBuffer <- true
 			}
@@ -209,7 +217,6 @@ func NewWorker(metricsSubmitter metrics.Submitter, config *WorkerConfig) (*Worke
 					}()
 				}
 			}
-
 			bufferedMetrics.WithLabelValues(w.metricsSubmitter.AnodotURL().Host).Set(float64(w.BufferSize()))
 			concurrentWorkers.WithLabelValues(w.metricsSubmitter.AnodotURL().Host).Set(float64(atomic.LoadInt64(&w.currentWorkers)))
 		}

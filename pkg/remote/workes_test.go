@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"github.com/anodot/anodot-common/pkg/metrics"
 	"github.com/prometheus/client_golang/prometheus/testutil"
+	"io/ioutil"
+	"log"
 	"net/http"
 	"strings"
 	"sync/atomic"
 
-	"io/ioutil"
-	"log"
 	"net/url"
 	"os"
 	"sort"
@@ -19,6 +19,7 @@ import (
 )
 
 func TestMetricsShouldBeBuffered(t *testing.T) {
+	unsetEnvVars()
 	expectedMetricsPerRequestSize := map[int]int{1: 1000, 2: 500}
 
 	requestNumber := 0
@@ -104,6 +105,7 @@ func (s byTimestamp) Less(i, j int) bool {
 }
 
 func TestToString(t *testing.T) {
+	unsetEnvVars()
 	anodot20Submitter, e := metrics.NewAnodot20Client("http://localhost:8080", "123", nil)
 	if e != nil {
 		t.Fatal(e)
@@ -124,7 +126,7 @@ func TestToString(t *testing.T) {
 }
 
 func TestMetricsPerRequestEnvConfigurationIncorrect(t *testing.T) {
-
+	unsetEnvVars()
 	var envConfig = []struct {
 		envValue string
 		isValid  bool
@@ -173,6 +175,7 @@ func TestMetricsPerRequestEnvConfigurationIncorrect(t *testing.T) {
 }
 
 func TestNewWorkerSubmitterNil(t *testing.T) {
+	unsetEnvVars()
 	config, err := NewWorkerConfig()
 	if err != nil {
 		t.Fatal(err)
@@ -189,6 +192,7 @@ func TestNewWorkerSubmitterNil(t *testing.T) {
 }
 
 func TestSubmitError(t *testing.T) {
+	unsetEnvVars()
 	anodotSubmitterErrors.Reset()
 	_ = os.Setenv("ANODOT_METRICS_PER_REQUEST_SIZE", "10")
 
@@ -234,6 +238,7 @@ func TestSubmitError(t *testing.T) {
 }
 
 func TestSubmitErrorInReponse(t *testing.T) {
+	unsetEnvVars()
 	anodotSubmitterErrors.Reset()
 
 	_ = os.Setenv("ANODOT_METRICS_PER_REQUEST_SIZE", "10")
@@ -272,13 +277,17 @@ func TestSubmitErrorInReponse(t *testing.T) {
 }
 
 func TestNoMetricsSendInDebugMode(t *testing.T) {
+	unsetEnvVars()
 	log.SetOutput(ioutil.Discard)
 
 	reqSize := 1500
 	mockSubmitter := &MockSubmitter{f: func(metrics []metrics.Anodot20Metric) (metrics.AnodotResponse, error) {
-		t.Errorf("No metrics should be sent in debug mode")
+		t.Fatal("No metrics should be sent in debug mode")
 		return nil, nil
 	}}
+
+	os.Setenv("ANODOT_DEBUG", "true")
+	os.Setenv("ANODOT_MAX_WORKERS", "0")
 
 	config, err := NewWorkerConfig()
 	if err != nil {
@@ -290,6 +299,46 @@ func TestNoMetricsSendInDebugMode(t *testing.T) {
 		t.Fatal(err)
 	}
 	worker.Do(randomMetrics(reqSize))
+}
+
+func TestBufferExpirationTime(t *testing.T) {
+	unsetEnvVars()
+	mockSubmitter := &MockSubmitter{f: func(data []metrics.Anodot20Metric) (metrics.AnodotResponse, error) {
+		expectedMetricsSize := 2
+		if len(data) != expectedMetricsSize {
+			t.Errorf(fmt.Sprintf("Submitted metrics size is %d. Required size is: %d", len(data), expectedMetricsSize))
+		}
+
+		if !sort.IsSorted(byTimestamp(data)) {
+			t.Fatal("data should be sorted by time ASC")
+		}
+		return nil, nil
+	}}
+
+	os.Setenv("ANODOT_BATCH_SEND_DEADLINE", "1ms")
+	//just to make sure metrics per request size higher than number of metrics in buffer
+
+	os.Setenv("ANODOT_METRICS_PER_REQUEST_SIZE", "5000")
+
+	workerConfig, err := NewWorkerConfig()
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	worker, err := NewWorker(mockSubmitter, workerConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	fisrtBatch := randomMetrics(2)
+	worker.Do(fisrtBatch)
+	//sleep higher than ANODOT_BATCH_SEND_DEADLINE value
+	time.Sleep(200 * time.Millisecond)
+
+	if worker.BufferSize() != 0 {
+		t.Fatalf("noooo %d", worker.BufferSize())
+	}
+
 }
 
 type MockSubmitter struct {
@@ -309,7 +358,7 @@ func randomMetrics(size int) []metrics.Anodot20Metric {
 	data := make([]metrics.Anodot20Metric, 0, size)
 	for i := 0; i < size; i++ {
 		m := metrics.Anodot20Metric{Value: float64(i),
-			Timestamp: metrics.AnodotTimestamp{Time: time.Now().Add(time.Second * time.Duration(i))}}
+			Timestamp: metrics.AnodotTimestamp{Time: time.Now().Add(time.Millisecond * time.Duration(i))}}
 		data = append(data, m)
 	}
 
@@ -320,6 +369,14 @@ func waitWorkers(w *Worker, excpected int64) {
 	for start := time.Now(); time.Since(start) < 2*time.Second; {
 		if atomic.LoadInt64(&w.currentWorkers) == excpected {
 			return
+		}
+	}
+}
+
+func unsetEnvVars() {
+	for _, v := range os.Environ() {
+		if strings.HasPrefix(v, "ANODOT_") {
+			os.Unsetenv(strings.Split(v, "=")[0])
 		}
 	}
 }

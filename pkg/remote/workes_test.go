@@ -193,6 +193,8 @@ func TestNewWorkerSubmitterNil(t *testing.T) {
 
 func TestSubmitError(t *testing.T) {
 	unsetEnvVars()
+	os.Setenv("ANODOT_MAX_WORKERS", "0")
+
 	anodotSubmitterErrors.Reset()
 	_ = os.Setenv("ANODOT_METRICS_PER_REQUEST_SIZE", "10")
 

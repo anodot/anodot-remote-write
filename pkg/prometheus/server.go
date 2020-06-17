@@ -70,16 +70,23 @@ func (rc *Receiver) InitHttp(workers []*remote.Worker) {
 	if os.Getenv("ANODOT_PUSH_METRICS_ENABLED") == "true" {
 		go func() {
 			ticker := time.NewTicker(60 * time.Second)
-			for range ticker.C {
-				samples, err := utils.FetchMetrics("http://127.0.0.1:1234/metrics", 3, time.Second*5)
-				if err != nil {
-					log.Errorf("failed to scrape own metrics endpoint. %s", err.Error())
-				}
+			defer ticker.Stop()
+			quit := make(chan struct{})
 
-				for i := 0; i < len(workers); i++ {
-					go func(n int) {
-						workers[n].Do(rc.Parser.ParsePrometheusRequest(samples))
-					}(i)
+			for {
+				select {
+				case <-ticker.C:
+					samples, err := utils.FetchMetrics("http://127.0.0.1:1234/metrics", 3, time.Second*5)
+					if err != nil {
+						log.Errorf("failed to scrape own metrics endpoint. %s", err.Error())
+					}
+
+					for i := 0; i < len(workers); i++ {
+						workers[i].Do(rc.Parser.ParsePrometheusRequest(samples))
+					}
+				case <-quit:
+					ticker.Stop()
+					return
 				}
 			}
 		}()
@@ -115,9 +122,7 @@ func (rc *Receiver) InitHttp(workers []*remote.Worker) {
 		}
 
 		for i := 0; i < len(workers); i++ {
-			go func(n int) {
-				workers[n].Do(data)
-			}(i)
+			workers[i].Do(data)
 		}
 	})
 

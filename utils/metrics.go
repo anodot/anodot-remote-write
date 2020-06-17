@@ -40,7 +40,9 @@ func FetchMetrics(url string, retries int, timeout time.Duration) ([]*model.Samp
 
 	defer func() {
 		_, err := io.Copy(ioutil.Discard, response.Body)
-		log.Error(err)
+		if err != nil {
+			log.Error(err)
+		}
 		_ = response.Body.Close()
 	}()
 

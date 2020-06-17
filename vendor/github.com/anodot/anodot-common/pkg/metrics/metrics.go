@@ -184,10 +184,12 @@ func (s *Anodot20Client) SubmitMetrics(metrics []Anodot20Metric) (AnodotResponse
 
 	resp, err := s.client.Do(r)
 	defer func() {
-		io.Copy(ioutil.Discard, resp.Body)
-		err = resp.Body.Close()
-		if err != nil {
-			fmt.Printf("failed to close response body: %s", err.Error())
+		if resp != nil {
+			io.Copy(ioutil.Discard, resp.Body)
+			err = resp.Body.Close()
+			if err != nil {
+				fmt.Printf("failed to close response body: %s", err.Error())
+			}
 		}
 	}()
 

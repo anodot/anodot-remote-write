@@ -155,6 +155,8 @@ func main() {
 		config.Debug = *debug
 	}
 
+	log.V(2).Infof("workers configuration: %+v", config)
+
 	primaryWorker, err := remote.NewWorker(primarySubmitter, config)
 	if err != nil {
 		log.Fatal("Failed to create worker: ", err.Error())

@@ -3,7 +3,7 @@ global:
   evaluation_interval: 1s
 
 remote_write:
-  - url: "http://remote-write:1234/receive"
+  - url: "http://vm-agent:8429/api/v1/write"
     write_relabel_configs:
       - source_labels: [anodot_include]
         regex: 'true'

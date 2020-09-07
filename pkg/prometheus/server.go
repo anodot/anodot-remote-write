@@ -5,6 +5,7 @@ import (
 	"github.com/anodot/anodot-remote-write/utils"
 	log "k8s.io/klog/v2"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/anodot/anodot-remote-write/pkg/remote"
@@ -26,10 +27,10 @@ type Receiver struct {
 }
 
 var (
-	totalRequests = promauto.NewCounter(prometheus.CounterOpts{
+	totalRequests = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "anodot_remote_write_received_requests",
 		Help: "The total number of received requests from Prometheus server",
-	})
+	}, []string{"remote_address"})
 
 	httpResponses = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "anodot_remote_write_http_responses_total",
@@ -92,8 +93,8 @@ func (rc *Receiver) InitHttp(workers []*remote.Worker) {
 		}()
 	}
 
-	http.HandleFunc(RECEIVER_ENDPOINT, func(w http.ResponseWriter, r *http.Request) {
-		totalRequests.Inc()
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		totalRequests.WithLabelValues(getIP(r)).Inc()
 
 		compressed, err := ioutil.ReadAll(r.Body)
 		if err != nil {
@@ -124,7 +125,26 @@ func (rc *Receiver) InitHttp(workers []*remote.Worker) {
 		for i := 0; i < len(workers); i++ {
 			workers[i].Do(data)
 		}
-	})
+	}
+
+	// Save pprof handlers first.
+	pprofMux := http.DefaultServeMux
+	http.DefaultServeMux = http.NewServeMux()
+	go func() {
+		log.Fatal(http.ListenAndServe(":8081", pprofMux))
+	}()
+
+	username := os.Getenv("ANODOT_REMOTE_WRITE_USER")
+	password := os.Getenv("ANODOT_REMOTE_WRITE_PASSWORD")
+	if len(strings.TrimSpace(username)) > 0 && len(strings.TrimSpace(password)) > 0 {
+		auth := &BasicAuthConfig{
+			Username: username,
+			Password: password,
+		}
+		http.HandleFunc(RECEIVER_ENDPOINT, auth.PerformAuthentification(handler))
+	} else {
+		http.HandleFunc(RECEIVER_ENDPOINT, handler)
+	}
 
 	http.HandleFunc(HEALTH_ENDPOINT, func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -134,4 +154,21 @@ func (rc *Receiver) InitHttp(workers []*remote.Worker) {
 
 	versionInfo.With(prometheus.Labels{"version": version.VERSION, "git_sha1": version.REVISION}).Inc()
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", rc.Port), nil))
+}
+
+func getIP(r *http.Request) string {
+	IPAddress := r.Header.Get("X-Real-Ip")
+	if IPAddress == "" {
+		IPAddress = r.Header.Get("X-Forwarded-For")
+	}
+	if IPAddress == "" {
+		IPAddress = r.RemoteAddr
+	}
+
+	//we do not need port
+	if strings.Contains(IPAddress, ":") {
+		IPAddress = strings.Split(IPAddress, ":")[0]
+	}
+
+	return IPAddress
 }

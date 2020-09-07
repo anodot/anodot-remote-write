@@ -22,7 +22,7 @@ services:
       - ./sample-docker-prometheus.yml:/etc/prometheus/prometheus.yml:ro
 
   remote-write:
-    image: anodot/prometheus-remote-write:2.3.2
+    image: anodot/prometheus-remote-write:2.3.3-beta
     container_name: anodot-prometheus-remote-write
     depends_on:
       - anodot-metrics-stub
@@ -39,3 +39,21 @@ services:
       ANODOT_RELABEL_CONFIG_PATH: "/mnt/relabel.yml"
       ANODOT_HTTP_DEBUG_ENABLED: "true"
       ANODOT_PUSH_METRICS_ENABLED: "true"
+#      ANODOT_REMOTE_WRITE_USER: "_q_pW3Q9KBNguDkAP28WC2BiG4jYz1"
+#      ANODOT_REMOTE_WRITE_PASSWORD: "RWx91_Ub_jzV@l21mRlB0RowF1r0jP"
+
+  vm-agent:
+    image: victoriametrics/vmagent:latest
+    container_name: vm-agent
+    restart: unless-stopped
+    ports:
+      - "8429:8429"
+    command: ["-remoteWrite.url=http://remote-write:1234/receive","-remoteWrite.url=http://vm:8428/api/v1/write"]
+
+  vm:
+    image: victoriametrics/victoria-metrics
+    container_name: vm
+    restart: unless-stopped
+    ports:
+      - "8428:8428"
+      #command: ["-remoteWrite.url=http://remote-write:1234/receive","-remoteWrite.url=http://vm:8428/api/v1/write"]

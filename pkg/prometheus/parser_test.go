@@ -97,46 +97,6 @@ func TestNotAcceptableValue(t *testing.T) {
 	}
 }
 
-func TestMetricsMaxPropertiesSize(t *testing.T) {
-
-	m := make(map[model.LabelName]model.LabelValue, 20)
-	m[model.MetricNameLabel] = "more_than_20_props"
-
-	for i := 0; i < 20; i++ {
-		m[model.LabelName(fmt.Sprintf("key_%d", i))] = "test"
-	}
-
-	samples := model.Samples{
-		{
-			Metric:    m,
-			Timestamp: model.Time(1574693483),
-			Value:     3,
-		},
-		{
-			Metric: model.Metric{
-				model.MetricNameLabel: "ok_value",
-			},
-			Timestamp: model.Time(1574693483),
-			Value:     4,
-		},
-	}
-
-	parser, err := NewAnodotParser(nil, nil, nil)
-	if err != nil {
-		t.Fatalf(err.Error())
-	}
-
-	metrics := parser.ParsePrometheusRequest(samples)
-	if len(metrics) != 1 {
-		t.Fatalf("metric with more than 20 label values are not accepted by anodot")
-	}
-
-	v := testutil.ToFloat64(metricsPropertiesSizeExceeded)
-	if v != 1 {
-		t.Fatal(fmt.Sprintf("Wrong error counter \n got: %f\n want: %f", v, float64(1)))
-	}
-}
-
 func TestMaxPropertyLength(t *testing.T) {
 	var longKey bytes.Buffer
 	for i := 1; i <= 60; i++ {

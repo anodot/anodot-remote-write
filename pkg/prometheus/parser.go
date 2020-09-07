@@ -17,19 +17,13 @@ import (
 )
 
 const (
-	maxPropertyLength     = 150
-	maxKeyLength          = 50
-	maxNumberOfProperties = 20
-	whatPropertyName      = "what"
-	anodotTagLabelPrefix  = "anodot_tag_"
+	maxPropertyLength    = 150
+	maxKeyLength         = 50
+	whatPropertyName     = "what"
+	anodotTagLabelPrefix = "anodot_tag_"
 )
 
 var (
-	metricsPropertiesSizeExceeded = promauto.NewCounter(prometheus.CounterOpts{
-		Name: "anodot_parser_max_number_labels_reached",
-		Help: fmt.Sprintf("Number of times when Prometheus metric had more labels that allowed(%d).", maxNumberOfProperties),
-	})
-
 	incorrectValue = promauto.NewCounter(prometheus.CounterOpts{
 		Name: "anodot_parser_value_not_accepted",
 		Help: "Number of times metrics value was not accepted",
@@ -233,12 +227,6 @@ SAMPLES:
 		if math.IsNaN(metric.Value) || math.IsInf(metric.Value, 0) {
 			log.V(4).Infof("'%s' skipped. Nan and Inf values are ignored", r.Metric.String())
 			incorrectValue.Inc()
-			continue
-		}
-
-		if len(r.Metric) > maxNumberOfProperties {
-			metricsPropertiesSizeExceeded.Inc()
-			log.Warningf("Metric is skipped. Number of lables=%d is more that allowed(%d). %s", len(r.Metric), maxNumberOfProperties, r)
 			continue
 		}
 

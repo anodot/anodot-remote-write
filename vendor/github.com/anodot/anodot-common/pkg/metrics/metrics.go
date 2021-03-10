@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httputil"
@@ -153,12 +154,12 @@ func NewAnodot20Client(anodotURL string, apiToken string, httpClient *http.Clien
 	submitter := Anodot20Client{Token: apiToken, ServerURL: parsedUrl, client: httpClient}
 	if httpClient == nil {
 		client := http.Client{Timeout: 30 * time.Second}
-
-		debugHTTP, _ := strconv.ParseBool(os.Getenv("ANODOT_HTTP_DEBUG_ENABLED"))
-		if debugHTTP {
-			client.Transport = &debugHTTPTransport{r: http.DefaultTransport}
-		}
 		submitter.client = &client
+	}
+
+	debugHTTP, _ := strconv.ParseBool(os.Getenv("ANODOT_HTTP_DEBUG_ENABLED"))
+	if debugHTTP {
+		submitter.client.Transport = &debugHTTPTransport{r: submitter.client.Transport}
 	}
 
 	return &submitter, nil
@@ -182,6 +183,16 @@ func (s *Anodot20Client) SubmitMetrics(metrics []Anodot20Metric) (AnodotResponse
 	r.Header.Add("Content-Type", "application/json")
 
 	resp, err := s.client.Do(r)
+	defer func() {
+		if resp != nil {
+			io.Copy(ioutil.Discard, resp.Body)
+			err = resp.Body.Close()
+			if err != nil {
+				fmt.Printf("failed to close response body: %s", err.Error())
+			}
+		}
+	}()
+
 	anodotResponse := &CreateResponse{HttpResponse: resp}
 	if err != nil {
 		return anodotResponse, err

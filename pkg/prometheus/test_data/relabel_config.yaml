@@ -1,0 +1,14 @@
+relabel_configs:
+  - source_labels: [job, __meta_dns_name]
+    regex:         (.*)some-[regex]
+    target_label:  job
+    replacement:   foo-${1}
+
+  - source_labels: [__name__]
+    regex:         expensive.*
+    action:        drop
+
+  - source_labels: [__name__]
+    regex: '(.*)'
+    target_label: anodot_include
+    replacement: 'true'

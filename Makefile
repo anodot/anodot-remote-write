@@ -4,7 +4,7 @@ GOFLAGS=-mod=vendor
 GOARCH := amd64
 GOOS := linux
 
-GOLINT_VERSION:=1.24.0
+GOLINT_VERSION:=1.27.0
 
 BUILD_FLAGS = GO111MODULE=on CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) GOFLAGS=$(GOFLAGS)
 APPLICATION_NAME := anodot-prometheus-remote-write
@@ -34,7 +34,7 @@ vet:
 	$(BUILD_FLAGS) $$(go env GOPATH)/bin/golangci-lint run
 
 errorcheck: install-errcheck
-	$$(go env GOPATH)/bin/errcheck ./pkg/...
+	$$(go env GOPATH)/bin/errcheck -ignoretests ./pkg/...
 
 install-errcheck:
 	which errcheck || GO111MODULE=off go get -u github.com/kisielk/errcheck

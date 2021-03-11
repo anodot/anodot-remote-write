@@ -69,8 +69,8 @@ dockerhub-login:
 	docker login -u $(DOCKER_USERNAME) -p $(DOCKER_PASSWORD)
 
 version-set:
-	@sed -i '' 's#$(DOCKER_IMAGE_NAME):$(PREVIOUS_VERSION)#$(DOCKER_IMAGE_NAME):$(VERSION)#g' deployment/docker-compose/docker-compose.yaml && \
-	sed -i '' 's#$(DOCKER_IMAGE_NAME):$(PREVIOUS_VERSION)#$(DOCKER_IMAGE_NAME):$(VERSION)#g' e2e/docker-compose.yaml && \
+	@sed -i '' 's#$(DOCKER_IMAGE_NAME):.*#$(DOCKER_IMAGE_NAME):$(VERSION)#g' deployment/docker-compose/docker-compose.yaml && \
+	sed -i '' 's#$(DOCKER_IMAGE_NAME):.*#$(DOCKER_IMAGE_NAME):$(VERSION)#g' e2e/docker-compose.yaml && \
 	echo "Version $(VERSION) set in code, deployment, chart"
 
 vendor-update:

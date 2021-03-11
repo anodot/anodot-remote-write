@@ -11,6 +11,10 @@ APPLICATION_NAME := anodot-prometheus-remote-write
 DOCKER_IMAGE_NAME := anodot/prometheus-remote-write
 
 VERSION := $(shell grep 'VERSION' pkg/version/version.go | awk '{ print $$4 }' | tr -d '"')
+ifeq ($(shell git branch --show-current), beta)
+VERSION := $(VERSION)-beta
+endif
+
 PREVIOUS_VERSION := $(shell git show HEAD:pkg/version/version.go | grep 'VERSION' | awk '{ print $$4 }' | tr -d '"' )
 GIT_COMMIT := $(shell git describe --dirty --always)
 

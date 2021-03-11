@@ -11,6 +11,7 @@ APPLICATION_NAME := anodot-prometheus-remote-write
 DOCKER_IMAGE_NAME := anodot/prometheus-remote-write
 
 VERSION := $(shell grep 'VERSION' pkg/version/version.go | awk '{ print $$4 }' | tr -d '"')
+# Add beta suffix if deploying from beta branch
 ifeq ($(shell git branch --show-current), beta)
 VERSION := $(VERSION)-beta
 endif

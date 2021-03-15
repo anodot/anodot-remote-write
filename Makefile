@@ -71,6 +71,7 @@ dockerhub-login:
 version-set:
 	@sed -i '' 's#$(DOCKER_IMAGE_NAME):.*#$(DOCKER_IMAGE_NAME):$(VERSION)#g' deployment/docker-compose/docker-compose.yaml && \
 	sed -i '' 's#$(DOCKER_IMAGE_NAME):.*#$(DOCKER_IMAGE_NAME):$(VERSION)#g' e2e/docker-compose.yaml && \
+	sed -i '' 's#version=.*#version="$(VERSION)" \\#g' Dockerfile && \
 	echo "Version $(VERSION) set in code, deployment, chart"
 
 vendor-update:

@@ -22,7 +22,7 @@ services:
       - ./sample-docker-prometheus.yml:/etc/prometheus/prometheus.yml:ro
 
   remote-write:
-    image: anodot/prometheus-remote-write:2.3.2
+    image: anodot/prometheus-remote-write:2.4.1-beta
     container_name: anodot-prometheus-remote-write
     depends_on:
       - anodot-metrics-stub

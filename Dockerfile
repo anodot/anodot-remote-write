@@ -1,4 +1,4 @@
-FROM registry.access.redhat.com/ubi8/ubi-minimal
+FROM registry.access.redhat.com/ubi8/ubi-minimal:8.3
 
 ENV ANODOT_TAGS="source=prometheus-remote-write"
 
@@ -6,7 +6,7 @@ ENV ANODOT_TAGS="source=prometheus-remote-write"
 LABEL name="Anodot Prometheus Remote Write" \
       maintainer="support@anodot.com" \
       vendor="Anodot" \
-      version="1.0.0" \
+      version="2.4.1-beta" \
       release="1" \
       summary="https://github.com/anodot/anodot-remote-write" \
       description="Service which receives Prometheus metrics through remote_write, converts metrics and sends them into Anodot"

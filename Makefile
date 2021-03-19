@@ -69,7 +69,7 @@ e2e: build-container
 	GOFLAGS=$(GOFLAGS) $(GO) test -v -count=1 -timeout 60s ./e2e/...
 
 push-container: test-container
-	docker push $(DOCKER_IMAGE_NAME):$(VERSION) --all-tags
+	docker push $(DOCKER_IMAGE_NAME) --all-tags
 
 dockerhub-login:
 	docker login -u $(DOCKER_USERNAME) -p $(DOCKER_PASSWORD)

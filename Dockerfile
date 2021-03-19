@@ -1,12 +1,13 @@
 FROM registry.access.redhat.com/ubi8/ubi-minimal:8.3
 
 ENV ANODOT_TAGS="source=prometheus-remote-write"
+ARG VERSION=latest
 
 ### Required OpenShift Labels
 LABEL name="Anodot Prometheus Remote Write" \
       maintainer="support@anodot.com" \
       vendor="Anodot" \
-      version="2.4.1-beta" \
+      version=${VERSION} \
       release="1" \
       summary="https://github.com/anodot/anodot-remote-write" \
       description="Service which receives Prometheus metrics through remote_write, converts metrics and sends them into Anodot"

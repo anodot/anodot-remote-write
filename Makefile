@@ -44,7 +44,7 @@ build:
 	$(BUILD_FLAGS) $(GO) build -ldflags "-s -w -X github.com/anodot/anodot-remote-write/pkg/version.REVISION=$(GIT_COMMIT)" -o $(APPLICATION_NAME)
 
 build-container: build
-	docker build -t $(DOCKER_IMAGE_NAME):$(VERSION) .
+	docker build -t $(DOCKER_IMAGE_NAME):$(VERSION) --build-arg VERSION=$(VERSION) .
 	@echo ">> created docker image $(DOCKER_IMAGE_NAME):$(VERSION)"
 
 test:
@@ -71,7 +71,6 @@ dockerhub-login:
 version-set:
 	@sed -i '' 's#$(DOCKER_IMAGE_NAME):.*#$(DOCKER_IMAGE_NAME):$(VERSION)#g' deployment/docker-compose/docker-compose.yaml && \
 	sed -i '' 's#$(DOCKER_IMAGE_NAME):.*#$(DOCKER_IMAGE_NAME):$(VERSION)#g' e2e/docker-compose.yaml && \
-	sed -i '' 's#version=.*#version="$(VERSION)" \\#g' Dockerfile && \
 	echo "Version $(VERSION) set in code, deployment, chart"
 
 vendor-update:

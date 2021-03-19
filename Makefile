@@ -14,11 +14,6 @@ VERSION := $(shell git describe --tags --abbrev=0 | cut -c2-)
 PREVIOUS_VERSION := $(shell git show HEAD:pkg/version/version.go | grep 'VERSION' | awk '{ print $$4 }' | tr -d '"' )
 GIT_COMMIT := $(shell git describe --dirty --always)
 
-EXTRA_TAGS := ""
-ifeq ($(shell git branch --show-current), dev)
-EXTRA_TAGS = $(shell echo "-t $(DOCKER_IMAGE_NAME):latest ")
-endif
-
 all: clean format vet test build build-container test-container
 publish-container: clean format vet test build build-container test-all push-container
 lint: check-formatting errorcheck vet
@@ -49,8 +44,7 @@ build:
 	$(BUILD_FLAGS) $(GO) build -ldflags "-s -w -X github.com/anodot/anodot-remote-write/pkg/version.REVISION=$(GIT_COMMIT)" -o $(APPLICATION_NAME)
 
 build-container: build
-	docker build -t $(DOCKER_IMAGE_NAME):$(VERSION) $(EXTRA_TAGS)--build-arg VERSION=$(VERSION) .
-
+	docker build -t $(DOCKER_IMAGE_NAME):$(VERSION) --build-arg VERSION=$(VERSION) .
 	@echo ">> created docker image $(DOCKER_IMAGE_NAME):$(VERSION)"
 
 test:
@@ -69,7 +63,12 @@ e2e: build-container
 	GOFLAGS=$(GOFLAGS) $(GO) test -v -count=1 -timeout 60s ./e2e/...
 
 push-container: test-container
-	docker push $(DOCKER_IMAGE_NAME) --all-tags
+	docker push $(DOCKER_IMAGE_NAME):$(VERSION)
+
+ifeq ($(shell git branch --show-current), dev)
+	docker tag $(DOCKER_IMAGE_NAME):$(VERSION) $(DOCKER_IMAGE_NAME):latest
+	docker push $(DOCKER_IMAGE_NAME):latest
+endif
 
 dockerhub-login:
 	docker login -u $(DOCKER_USERNAME) -p $(DOCKER_PASSWORD)

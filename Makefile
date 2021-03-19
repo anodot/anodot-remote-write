@@ -45,6 +45,11 @@ build:
 
 build-container: build
 	docker build -t $(DOCKER_IMAGE_NAME):$(VERSION) --build-arg VERSION=$(VERSION) .
+
+	ifeq ($(shell git branch --show-current), dev)
+	docker tag  $(DOCKER_IMAGE_NAME):latest
+	endif
+
 	@echo ">> created docker image $(DOCKER_IMAGE_NAME):$(VERSION)"
 
 test:

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httputil"
@@ -20,7 +19,7 @@ type AnodotTimestamp struct {
 	time.Time
 }
 
-func (t *AnodotTimestamp) MarshalJSON() ([]byte, error) {
+func (t AnodotTimestamp) MarshalJSON() ([]byte, error) {
 	return []byte(fmt.Sprint(t.Unix())), nil
 }
 
@@ -141,58 +140,55 @@ type Anodot20Client struct {
 }
 
 //Constructs new Anodot 2.0 submitter which should be used to send metrics to Anodot.
-func NewAnodot20Client(anodotURL string, apiToken string, httpClient *http.Client) (*Anodot20Client, error) {
-	parsedUrl, err := url.Parse(anodotURL)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse Anodot server url: %w", err)
-	}
+func NewAnodot20Client(anodotURL url.URL, apiToken string, httpClient *http.Client) (*Anodot20Client, error) {
 
 	if len(strings.TrimSpace(apiToken)) == 0 {
 		return nil, fmt.Errorf("anodot api token should not be blank")
 	}
 
-	submitter := Anodot20Client{Token: apiToken, ServerURL: parsedUrl, client: httpClient}
+	submitter := Anodot20Client{Token: apiToken, ServerURL: &anodotURL, client: httpClient}
 	if httpClient == nil {
 		client := http.Client{Timeout: 30 * time.Second}
-		submitter.client = &client
-	}
 
-	debugHTTP, _ := strconv.ParseBool(os.Getenv("ANODOT_HTTP_DEBUG_ENABLED"))
-	if debugHTTP {
-		submitter.client.Transport = &debugHTTPTransport{r: submitter.client.Transport}
+		debugHTTP, _ := strconv.ParseBool(os.Getenv("ANODOT_HTTP_DEBUG_ENABLED"))
+		if debugHTTP {
+			client.Transport = &debugHTTPTransport{r: http.DefaultTransport}
+		}
+		submitter.client = &client
 	}
 
 	return &submitter, nil
 }
 
 func (s *Anodot20Client) SubmitMetrics(metrics []Anodot20Metric) (AnodotResponse, error) {
-	s.ServerURL.Path = "/api/v1/metrics"
+	return s.sendMetrics(metrics, "/api/v1/metrics")
 
-	q := s.ServerURL.Query()
+}
+
+func (s *Anodot20Client) SubmitMonitoringMetrics(metrics []Anodot20Metric) (AnodotResponse, error) {
+	return s.sendMetrics(metrics, "/api/v1/agents")
+}
+
+func (s *Anodot20Client) sendMetrics(metrics []Anodot20Metric, endpoint string) (AnodotResponse, error) {
+
+	sUrl := *s.ServerURL
+	sUrl.Path = endpoint
+
+	q := sUrl.Query()
 	q.Set("token", s.Token)
 	q.Set("protocol", "anodot20")
 
-	s.ServerURL.RawQuery = q.Encode()
+	sUrl.RawQuery = q.Encode()
 
 	b, e := json.Marshal(metrics)
 	if e != nil {
 		return nil, fmt.Errorf("Failed to parse message:" + e.Error())
 	}
 
-	r, _ := http.NewRequest(http.MethodPost, s.ServerURL.String(), bytes.NewBuffer(b))
+	r, _ := http.NewRequest(http.MethodPost, sUrl.String(), bytes.NewBuffer(b))
 	r.Header.Add("Content-Type", "application/json")
 
 	resp, err := s.client.Do(r)
-	defer func() {
-		if resp != nil {
-			io.Copy(ioutil.Discard, resp.Body)
-			err = resp.Body.Close()
-			if err != nil {
-				fmt.Printf("failed to close response body: %s", err.Error())
-			}
-		}
-	}()
-
 	anodotResponse := &CreateResponse{HttpResponse: resp}
 	if err != nil {
 		return anodotResponse, err
@@ -276,6 +272,11 @@ func (d *debugHTTPTransport) RoundTrip(h *http.Request) (*http.Response, error) 
 	dump, _ := httputil.DumpRequestOut(h, true)
 	fmt.Printf("----------------------------------REQUEST----------------------------------\n%s\n", string(dump))
 	resp, err := d.r.RoundTrip(h)
+	if err != nil {
+		fmt.Println("failed to obtain response: ", err.Error())
+		return resp, err
+	}
+
 	dump, _ = httputil.DumpResponse(resp, true)
 	fmt.Printf("----------------------------------RESPONSE----------------------------------\n%s\n----------------------------------\n\n", string(dump))
 	return resp, err

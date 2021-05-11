@@ -4,7 +4,7 @@ GOFLAGS=-mod=vendor
 GOARCH := amd64
 GOOS := linux
 
-GOLINT_VERSION:=1.27.0
+GOLINT_VERSION:=1.40.0
 
 BUILD_FLAGS = GO111MODULE=on CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) GOFLAGS=$(GOFLAGS)
 APPLICATION_NAME := anodot-prometheus-remote-write
@@ -31,7 +31,7 @@ format:
 
 vet:
 	@curl -sfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh| sh -s -- -b $$(go env GOPATH)/bin v$(GOLINT_VERSION)
-	$(BUILD_FLAGS) $$(go env GOPATH)/bin/golangci-lint run
+	$(BUILD_FLAGS) $$(go env GOPATH)/bin/golangci-lint run -e "SA1019"
 
 errorcheck: install-errcheck
 	$$(go env GOPATH)/bin/errcheck -ignoretests ./pkg/...

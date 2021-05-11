@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
@@ -177,12 +178,18 @@ func main() {
 			log.Fatalf("Could not parse Anodot url: %v", err)
 		}
 
+		p := defaultIfBlank(os.Getenv("ANODOT_MONTORING_REPORT_PERIOD_SEC"), "60")
+		period, err := strconv.Atoi(p)
+		if err != nil {
+			log.Fatalf("Could not parse ANODOT_MONTORING_REPORT_PERIOD_SEC: %v", err)
+		}
+
 		monitoringSubmitter, err := metrics2.NewAnodot20Client(*url, token, nil)
 		if err != nil {
 			log.Fatalf("Failed to create monitoring submitter %v", err)
 		}
 
-		reporter := anodotPrometheus.NewReporter(monitoringSubmitter, *parser)
+		reporter := anodotPrometheus.NewReporter(monitoringSubmitter, *parser, period)
 		reporter.Report()
 	}
 

@@ -38,12 +38,13 @@ var (
 // Reporter used for reporting remote-write metrics
 // to agents endpoint
 type Reporter struct {
+	period           time.Duration
 	metricsSubmitter *metrics.Anodot20Client
 	parser           AnodotParser
 }
 
-func NewReporter(submitter *metrics.Anodot20Client, parser AnodotParser) *Reporter {
-	return &Reporter{submitter, parser}
+func NewReporter(submitter *metrics.Anodot20Client, parser AnodotParser, periodSec int) *Reporter {
+	return &Reporter{time.Duration(periodSec) * time.Second, submitter, parser}
 }
 
 func (r *Reporter) pushMetrics(metricsToSend []metrics.Anodot20Metric) {
@@ -64,7 +65,7 @@ func (r *Reporter) pushMetrics(metricsToSend []metrics.Anodot20Metric) {
 
 func (r *Reporter) Report() {
 	go func() {
-		ticker := time.NewTicker(60 * time.Second)
+		ticker := time.NewTicker(r.period)
 		defer ticker.Stop()
 		for {
 			select {

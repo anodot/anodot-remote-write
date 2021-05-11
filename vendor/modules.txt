@@ -1,4 +1,4 @@
-# github.com/anodot/anodot-common v0.0.6
+# github.com/anodot/anodot-common v0.0.8
 github.com/anodot/anodot-common/pkg/metrics
 # github.com/beorn7/perks v1.0.1
 github.com/beorn7/perks/quantile

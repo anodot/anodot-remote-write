@@ -67,17 +67,15 @@ func (r *Reporter) Report() {
 	go func() {
 		ticker := time.NewTicker(r.period)
 		defer ticker.Stop()
-		for {
-			select {
-			case <-ticker.C:
-				samples, err := getSamples()
-				if err != nil {
-					log.Errorf("Failed to collect monitoring metrics %v", err)
-					monitoringErrors.Add(1)
-				}
-				data := r.parseMetrics(samples)
-				r.pushMetrics(data)
+
+		for range ticker.C {
+			samples, err := getSamples()
+			if err != nil {
+				log.Errorf("Failed to collect monitoring metrics %v", err)
+				monitoringErrors.Add(1)
 			}
+			data := r.parseMetrics(samples)
+			r.pushMetrics(data)
 		}
 	}()
 

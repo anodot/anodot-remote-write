@@ -42,7 +42,6 @@ var (
 		Name: "anodot_remote_write_version",
 		Help: "Build info",
 	}, []string{"version", "git_sha1"})
-	r = prometheus.NewRegistry()
 )
 
 const RECEIVER_ENDPOINT = "/receive"

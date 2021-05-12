@@ -178,7 +178,7 @@ func main() {
 			log.Fatalf("Could not parse Anodot url: %v", err)
 		}
 
-		p := defaultIfBlank(os.Getenv("ANODOT_MONTORING_REPORT_PERIOD_SEC"), "60")
+		p := defaultIfBlank(os.Getenv("ANODOT_MONTORING_REPORT_PERIOD_SEC"), "50")
 		period, err := strconv.Atoi(p)
 		if err != nil {
 			log.Fatalf("Could not parse ANODOT_MONTORING_REPORT_PERIOD_SEC: %v", err)

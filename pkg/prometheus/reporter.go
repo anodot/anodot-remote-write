@@ -78,7 +78,6 @@ func (r *Reporter) Report() {
 			r.pushMetrics(data)
 		}
 	}()
-
 }
 
 func (r *Reporter) parseMetrics(samples []*model.Sample) []metrics.Anodot20Metric {

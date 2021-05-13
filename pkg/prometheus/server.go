@@ -2,10 +2,14 @@ package prometheus
 
 import (
 	"fmt"
-	"github.com/anodot/anodot-remote-write/utils"
-	log "k8s.io/klog/v2"
 	"os"
 	"time"
+
+	"github.com/anodot/anodot-remote-write/utils"
+	log "k8s.io/klog/v2"
+
+	"io/ioutil"
+	"net/http"
 
 	"github.com/anodot/anodot-remote-write/pkg/remote"
 	"github.com/anodot/anodot-remote-write/pkg/version"
@@ -16,8 +20,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/prometheus/prompb"
-	"io/ioutil"
-	"net/http"
 )
 
 type Receiver struct {

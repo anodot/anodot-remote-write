@@ -3,6 +3,15 @@ package main
 import (
 	"flag"
 	"fmt"
+	"net/http"
+	_ "net/http/pprof"
+	"net/url"
+	"os"
+	"runtime"
+	"strconv"
+	"strings"
+	"time"
+
 	metrics2 "github.com/anodot/anodot-common/pkg/metrics"
 	anodotPrometheus "github.com/anodot/anodot-remote-write/pkg/prometheus"
 	"github.com/anodot/anodot-remote-write/pkg/relabling"
@@ -11,13 +20,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	log "k8s.io/klog/v2"
-	"net/http"
-	_ "net/http/pprof"
-	"net/url"
-	"os"
-	"runtime"
-	"strings"
-	"time"
 )
 
 const (
@@ -70,7 +72,7 @@ func main() {
 			log.Fatalf("Failed to construct Anodot server url with url=%q. Error:%s", *murl, err.Error())
 		}
 
-		mirrorSubmitter, err = metrics2.NewAnodot20Client(mirrorURL.String(), *mtoken, nil)
+		mirrorSubmitter, err = metrics2.NewAnodot20Client(*mirrorURL, *mtoken, nil)
 		if err != nil {
 			log.Fatalf("Failed to create mirror submitter: %s", err.Error())
 		}
@@ -134,7 +136,7 @@ func main() {
 		Timeout:   30 * time.Second,
 	}
 
-	primarySubmitter, err := metrics2.NewAnodot20Client(primaryUrl.String(), token, client)
+	primarySubmitter, err := metrics2.NewAnodot20Client(*primaryUrl, token, client)
 	if err != nil {
 		log.Fatalf("Failed to create Anodot metrics submitter: %s", err.Error())
 	}
@@ -169,6 +171,28 @@ func main() {
 		}
 		allWorkers = append(allWorkers, mirrorWorker)
 	}
+
+	if os.Getenv("ANODOT_REPORT_MONITORING_METRICS") == "true" {
+		url, err := url.Parse(DEFAULT_ANODOT_URL)
+		if err != nil {
+			log.Fatalf("Could not parse Anodot url: %v", err)
+		}
+
+		p := defaultIfBlank(os.Getenv("ANODOT_MONTORING_REPORT_PERIOD_SEC"), "50")
+		period, err := strconv.Atoi(p)
+		if err != nil {
+			log.Fatalf("Could not parse ANODOT_MONTORING_REPORT_PERIOD_SEC: %v", err)
+		}
+
+		monitoringSubmitter, err := metrics2.NewAnodot20Client(*url, token, nil)
+		if err != nil {
+			log.Fatalf("Failed to create monitoring submitter %v", err)
+		}
+
+		reporter := anodotPrometheus.NewReporter(monitoringSubmitter, *parser, period)
+		reporter.Report()
+	}
+
 	s.InitHttp(allWorkers)
 }
 

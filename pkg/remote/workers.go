@@ -3,17 +3,18 @@ package remote
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/anodot/anodot-common/pkg/metrics"
-	"github.com/kelseyhightower/envconfig"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promauto"
-	log "k8s.io/klog/v2"
 	"os"
 	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/anodot/anodot-common/pkg/metrics"
+	"github.com/kelseyhightower/envconfig"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
+	log "k8s.io/klog/v2"
 )
 
 type Worker struct {

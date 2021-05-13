@@ -2,20 +2,22 @@ package remote
 
 import (
 	"fmt"
-	"github.com/anodot/anodot-common/pkg/metrics"
-	"github.com/prometheus/client_golang/prometheus/testutil"
 	"io/ioutil"
 	"net/http"
 	"strings"
 	"sync/atomic"
 
-	log "k8s.io/klog/v2"
+	"github.com/anodot/anodot-common/pkg/metrics"
+	"github.com/prometheus/client_golang/prometheus/testutil"
+
 	"net/url"
 	"os"
 	"sort"
 	"strconv"
 	"testing"
 	"time"
+
+	log "k8s.io/klog/v2"
 )
 
 func TestMetricsShouldBeBuffered(t *testing.T) {
@@ -106,7 +108,9 @@ func (s byTimestamp) Less(i, j int) bool {
 
 func TestToString(t *testing.T) {
 	unsetEnvVars()
-	anodot20Submitter, e := metrics.NewAnodot20Client("http://localhost:8080", "123", nil)
+	url, _ := url.Parse("http://localhost:8080")
+
+	anodot20Submitter, e := metrics.NewAnodot20Client(*url, "123", nil)
 	if e != nil {
 		t.Fatal(e)
 	}

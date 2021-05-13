@@ -4,16 +4,17 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
+	"regexp"
+	"sort"
+	"strings"
+
 	"github.com/anodot/anodot-common/pkg/metrics"
 	"github.com/anodot/anodot-remote-write/pkg/relabling"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/common/model"
 	log "k8s.io/klog/v2"
-	"math"
-	"regexp"
-	"sort"
-	"strings"
 )
 
 const (

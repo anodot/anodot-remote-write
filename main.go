@@ -172,7 +172,9 @@ func main() {
 		allWorkers = append(allWorkers, mirrorWorker)
 	}
 
-	if os.Getenv("ANODOT_REPORT_MONITORING_METRICS") == "true" {
+	ifReport := defaultIfBlank(os.Getenv("ANODOT_REPORT_MONITORING_METRICS"), "true")
+
+	if ifReport != "false" {
 		url, err := url.Parse(DEFAULT_ANODOT_URL)
 		if err != nil {
 			log.Fatalf("Could not parse Anodot url: %v", err)

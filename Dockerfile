@@ -1,4 +1,4 @@
-FROM registry.access.redhat.com/ubi8/ubi-minimal:8.3
+FROM registry.access.redhat.com/ubi8/ubi-minimal
 
 ENV ANODOT_TAGS="source=prometheus-remote-write"
 ARG VERSION=latest

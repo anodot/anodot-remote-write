@@ -65,7 +65,7 @@ e2e: build-container
 push-container: test-container
 	docker push $(DOCKER_IMAGE_NAME):$(VERSION)
 
-ifeq ($(shell git branch --show-current), dev)
+ifeq ($(shell git branch --show-current), master)
 	docker tag $(DOCKER_IMAGE_NAME):$(VERSION) $(DOCKER_IMAGE_NAME):latest
 	docker push $(DOCKER_IMAGE_NAME):latest
 endif

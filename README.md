@@ -2,6 +2,8 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/anodot/anodot-remote-write)](https://goreportcard.com/report/github.com/anodot/anodot-remote-write)
 [![Docker pulls](https://img.shields.io/docker/pulls/anodot/prometheus-remote-write.svg)](https://hub.docker.com/r/anodot/prometheus-remote-write)
 [![codecov](https://codecov.io/gh/anodot/anodot-remote-write/branch/master/graph/badge.svg)](https://codecov.io/gh/anodot/anodot-remote-write)
+[<img src="https://www.redhat.com/favicon.ico" width="25" alt="Red Hat certified"/>](https://catalog.redhat.com/software/containers/r/anodot/prometheus-remote-write/609e5564ac3db91643d96d76)
+
 
 # Anodot Prometheus Remote Write
 

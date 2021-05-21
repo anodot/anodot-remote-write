@@ -10,7 +10,7 @@ BUILD_FLAGS = GO111MODULE=on CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) GOFLAGS
 APPLICATION_NAME := anodot-prometheus-remote-write
 DOCKER_IMAGE_NAME := anodot/prometheus-remote-write
 
-VERSION := $(shell grep 'VERSION' pkg/version/version.go | awk '{ print $$4 }' | tr -d '"')
+VERSION := $(shell git describe --tags --abbrev=0 | cut -c2-)
 PREVIOUS_VERSION := $(shell git show HEAD:pkg/version/version.go | grep 'VERSION' | awk '{ print $$4 }' | tr -d '"' )
 GIT_COMMIT := $(shell git describe --dirty --always)
 
@@ -44,7 +44,7 @@ build:
 	$(BUILD_FLAGS) $(GO) build -ldflags "-s -w -X github.com/anodot/anodot-remote-write/pkg/version.REVISION=$(GIT_COMMIT)" -o $(APPLICATION_NAME)
 
 build-container: build
-	docker build -t $(DOCKER_IMAGE_NAME):$(VERSION) .
+	docker build -t $(DOCKER_IMAGE_NAME):$(VERSION) --build-arg VERSION=$(VERSION) .
 	@echo ">> created docker image $(DOCKER_IMAGE_NAME):$(VERSION)"
 
 test:
@@ -65,12 +65,17 @@ e2e: build-container
 push-container: test-container
 	docker push $(DOCKER_IMAGE_NAME):$(VERSION)
 
+ifeq ($(shell git branch --show-current), master)
+	docker tag $(DOCKER_IMAGE_NAME):$(VERSION) $(DOCKER_IMAGE_NAME):latest
+	docker push $(DOCKER_IMAGE_NAME):latest
+endif
+
 dockerhub-login:
 	docker login -u $(DOCKER_USERNAME) -p $(DOCKER_PASSWORD)
 
 version-set:
-	@sed -i '' 's#$(DOCKER_IMAGE_NAME):$(PREVIOUS_VERSION)#$(DOCKER_IMAGE_NAME):$(VERSION)#g' deployment/docker-compose/docker-compose.yaml && \
-	sed -i '' 's#$(DOCKER_IMAGE_NAME):$(PREVIOUS_VERSION)#$(DOCKER_IMAGE_NAME):$(VERSION)#g' e2e/docker-compose.yaml && \
+	@sed -i 's#$(DOCKER_IMAGE_NAME):.*#$(DOCKER_IMAGE_NAME):$(VERSION)#g' deployment/docker-compose/docker-compose.yaml && \
+	sed -i 's#$(DOCKER_IMAGE_NAME):.*#$(DOCKER_IMAGE_NAME):$(VERSION)#g' e2e/docker-compose.yaml && \
 	echo "Version $(VERSION) set in code, deployment, chart"
 
 vendor-update:

@@ -3,6 +3,9 @@
 [![Docker pulls](https://img.shields.io/docker/pulls/anodot/prometheus-remote-write.svg)](https://hub.docker.com/r/anodot/prometheus-remote-write)
 [![codecov](https://codecov.io/gh/anodot/anodot-remote-write/branch/master/graph/badge.svg)](https://codecov.io/gh/anodot/anodot-remote-write)
 
+[<img src="https://www.pngkit.com/png/detail/139-1394615_why-red-hat-certified-courses-red-hat-linux.png" width="150" alt="Red Hat certified"/>](https://catalog.redhat.com/software/containers/r/anodot/prometheus-remote-write/609e5564ac3db91643d96d76)
+
+
 # Anodot Prometheus Remote Write
 
 `anodot-prometheus-remote-write` is a service which receives [Prometheus](https://github.com/prometheus) metrics through [`remote_write`](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write), converts metrics and sends them into [Anodot](https://www.anodot.com).

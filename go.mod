@@ -2,9 +2,11 @@ module github.com/anodot/anodot-remote-write
 
 go 1.12
 
+replace github.com/anodot/anodot-common => /Users/dariaharlan/projects/anodot/anodot-common
+
 require (
 	github.com/alecthomas/units v0.0.0-20210208195552-ff826a37aa15 // indirect
-	github.com/anodot/anodot-common v0.0.8
+	github.com/anodot/anodot-common v0.0.9
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/protobuf v1.5.2
 	github.com/golang/snappy v0.0.3

@@ -13,6 +13,7 @@ import (
 	"time"
 
 	metrics2 "github.com/anodot/anodot-common/pkg/metrics"
+	metrics3 "github.com/anodot/anodot-common/pkg/metrics3"
 	anodotPrometheus "github.com/anodot/anodot-remote-write/pkg/prometheus"
 	"github.com/anodot/anodot-remote-write/pkg/relabling"
 	"github.com/anodot/anodot-remote-write/pkg/remote"
@@ -26,6 +27,7 @@ const (
 	DEFAULT_PORT              = 1234
 	DEFAULT_NUMBER_OF_WORKERS = 20
 	DEFAULT_TOKEN             = ""
+	DEFAULT_ACCESS_KEY        = ""
 	DEFAULT_ANODOT_URL        = "https://api.anodot.com"
 )
 
@@ -193,6 +195,30 @@ func main() {
 
 		reporter := anodotPrometheus.NewReporter(monitoringSubmitter, *parser, period)
 		reporter.Report()
+	}
+
+	accessKey := os.Getenv("ANODOT_ACCESS_KEY")
+	ifSendToBC := defaultIfBlank(os.Getenv("ANODOT_SEND_TO_BC"), "true")
+	sendToBCPeriod, err := strconv.Atoi(defaultIfBlank(os.Getenv("ANODOT_SEND_TO_BC_PERIOD_SEC"), "60"))
+	if err != nil {
+		log.Fatalf("Could not parse ANODOT_MONTORING_REPORT_PERIOD_SEC: %v", err)
+	}
+	if ifSendToBC != "false" && len(strings.TrimSpace(accessKey)) > 0 {
+		client, err := metrics3.NewAnodot30Client(*primaryUrl, &accessKey, &token, nil)
+		if err != nil {
+			log.Fatalf("failed to create anodot30 client: %v", err)
+		}
+		go func() {
+			ticker := time.NewTicker(time.Duration(sendToBCPeriod) * time.Second)
+			defer ticker.Stop()
+
+			for range ticker.C {
+				err = client.SendToBC()
+				if err != nil {
+					log.Fatalf("Failed to send status to BC %v", err)
+				}
+			}
+		}()
 	}
 
 	s.InitHttp(allWorkers)

@@ -1,8 +1,8 @@
 module github.com/anodot/anodot-remote-write
 
-go 1.12
+go 1.13
 
-replace github.com/anodot/anodot-common => /Users/dariaharlan/projects/anodot/anodot-common
+replace github.com/anodot/anodot-common => /Users/dariaharlan/anodot-common
 
 require (
 	github.com/alecthomas/units v0.0.0-20210208195552-ff826a37aa15 // indirect

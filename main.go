@@ -201,27 +201,32 @@ func main() {
 	ifSendToBC := defaultIfBlank(os.Getenv("ANODOT_SEND_TO_BC"), "true")
 	sendToBCPeriod, err := strconv.Atoi(defaultIfBlank(os.Getenv("ANODOT_SEND_TO_BC_PERIOD_SEC"), "60"))
 	if err != nil {
-		log.Fatalf("Could not parse ANODOT_MONTORING_REPORT_PERIOD_SEC: %v", err)
+		log.Fatalf("Could not parse ANODOT_SEND_TO_BC_PERIOD_SEC: %v", err)
 	}
 	if ifSendToBC != "false" && len(strings.TrimSpace(accessKey)) > 0 {
-		client, err := metrics3.NewAnodot30Client(*primaryUrl, &accessKey, &token, nil)
-		if err != nil {
-			log.Fatalf("failed to create anodot30 client: %v", err)
-		}
-		go func() {
-			ticker := time.NewTicker(time.Duration(sendToBCPeriod) * time.Second)
-			defer ticker.Stop()
-
-			for range ticker.C {
-				err = client.SendToBC()
-				if err != nil {
-					log.Fatalf("Failed to send status to BC %v", err)
-				}
-			}
-		}()
+		sendToBC(primaryUrl, accessKey, token, sendToBCPeriod)
 	}
 
 	s.InitHttp(allWorkers)
+}
+
+func sendToBC(primaryUrl *url.URL, accessKey string, token string, sendToBCPeriod int) {
+	client, err := metrics3.NewAnodot30Client(*primaryUrl, &accessKey, &token, nil)
+	if err != nil {
+		log.Fatalf("failed to create anodot30 client: %v", err)
+	}
+	startTime := time.Now()
+	go func() {
+		ticker := time.NewTicker(time.Duration(sendToBCPeriod) * time.Second)
+		defer ticker.Stop()
+
+		for range ticker.C {
+			_, err = client.SendToBC(anodotPrometheus.NewPipeline(startTime))
+			if err != nil {
+				log.Fatalf("Failed to send status to BC %v", err)
+			}
+		}
+	}()
 }
 
 func tags(envVar string) map[string]string {

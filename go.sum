@@ -14,8 +14,8 @@ github.com/alecthomas/units v0.0.0-20190717042225-c3de453c63f4/go.mod h1:ybxpYRF
 github.com/alecthomas/units v0.0.0-20190924025748-f65c72e2690d/go.mod h1:rBZYJk541a8SKzHPHnH3zbiI+7dagKZ0cgpgrD7Fyho=
 github.com/alecthomas/units v0.0.0-20210208195552-ff826a37aa15 h1:AUNCr9CiJuwrRYS3XieqF+Z9B9gNxo/eANAJCF2eiN4=
 github.com/alecthomas/units v0.0.0-20210208195552-ff826a37aa15/go.mod h1:OMCwj8VM1Kc9e19TLln2VL61YJF0x1XFtfdL4JdbSyE=
-github.com/anodot/anodot-common v0.0.9 h1:v333U0DVSqnRm2vQpMXqOO43bF29gFj2kPEQ6eJ5FIk=
-github.com/anodot/anodot-common v0.0.9/go.mod h1:za8DDPMVdFhrwPdR8y1N4prNnKjEWddJe/CM136iUuU=
+github.com/anodot/anodot-common v0.0.10 h1:VbNOCrgevBH360LHRKbmbcish/mwpOqNo8YDvJkGEgM=
+github.com/anodot/anodot-common v0.0.10/go.mod h1:za8DDPMVdFhrwPdR8y1N4prNnKjEWddJe/CM136iUuU=
 github.com/antihax/optional v1.0.0/go.mod h1:uupD/76wgC+ih3iEmQUL+0Ugr19nfwCT1kdvxnR2qWY=
 github.com/apache/thrift v0.12.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb+bacwQ=
 github.com/apache/thrift v0.13.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb+bacwQ=

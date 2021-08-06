@@ -13,7 +13,6 @@ import (
 	"time"
 
 	metrics2 "github.com/anodot/anodot-common/pkg/metrics"
-	metrics3 "github.com/anodot/anodot-common/pkg/metrics3"
 	anodotPrometheus "github.com/anodot/anodot-remote-write/pkg/prometheus"
 	"github.com/anodot/anodot-remote-write/pkg/relabling"
 	"github.com/anodot/anodot-remote-write/pkg/remote"
@@ -27,7 +26,6 @@ const (
 	DEFAULT_PORT              = 1234
 	DEFAULT_NUMBER_OF_WORKERS = 20
 	DEFAULT_TOKEN             = ""
-	DEFAULT_ACCESS_KEY        = ""
 	DEFAULT_ANODOT_URL        = "https://api.anodot.com"
 )
 
@@ -204,29 +202,10 @@ func main() {
 		log.Fatalf("Could not parse ANODOT_SEND_TO_BC_PERIOD_SEC: %v", err)
 	}
 	if ifSendToBC != "false" && len(strings.TrimSpace(accessKey)) > 0 {
-		sendToBC(primaryUrl, accessKey, token, sendToBCPeriod)
+		anodotPrometheus.SendAgentStatusToBC(primaryUrl, accessKey, token, sendToBCPeriod)
 	}
 
 	s.InitHttp(allWorkers)
-}
-
-func sendToBC(primaryUrl *url.URL, accessKey string, token string, sendToBCPeriod int) {
-	client, err := metrics3.NewAnodot30Client(*primaryUrl, &accessKey, &token, nil)
-	if err != nil {
-		log.Fatalf("failed to create anodot30 client: %v", err)
-	}
-	startTime := time.Now()
-	go func() {
-		ticker := time.NewTicker(time.Duration(sendToBCPeriod) * time.Second)
-		defer ticker.Stop()
-
-		for range ticker.C {
-			_, err = client.SendToBC(anodotPrometheus.NewPipeline(startTime))
-			if err != nil {
-				log.Fatalf("Failed to send status to BC %v", err)
-			}
-		}
-	}()
 }
 
 func tags(envVar string) map[string]string {

@@ -15,11 +15,11 @@ type Progress struct {
 }
 
 type Pipeline struct {
-	Id                  string `json:"pipeline_id"`
-	Created             AnodotTimestamp  `json:"created"`
-	Updated             AnodotTimestamp  `json:"updated"`
-	Status              string `json:"status"`
-	SchemaId            string `json:"schemaId"`
+	Id                  string          `json:"pipeline_id"`
+	Created             AnodotTimestamp `json:"created"`
+	Updated             AnodotTimestamp `json:"updated"`
+	Status              string          `json:"status"`
+	SchemaId            string          `json:"schemaId"`
 	Source              `json:"source"`
 	Scheduling          `json:"scheduling"`
 	Progress            `json:"progress"`

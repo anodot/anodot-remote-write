@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/anodot/anodot-common/pkg/metrics3"
 	"net/http"
 	_ "net/http/pprof"
 	"net/url"
@@ -55,6 +56,11 @@ func main() {
 
 	flag.Parse()
 	token := envOrFlag("ANODOT_API_TOKEN", tokenFlagValue)
+
+	accessKey := os.Getenv("ANODOT_ACCESS_KEY")
+	if len(strings.TrimSpace(accessKey)) == 0 {
+		log.Fatalf("ANODOT_ACCESS_KEY is not specified")
+	}
 
 	log.Info(fmt.Sprintf("Anodot Remote Write version: '%s'. GitSHA: '%s'", version.VERSION, version.REVISION))
 	log.V(3).Infof("Go Version: %s", runtime.Version())
@@ -195,14 +201,17 @@ func main() {
 		reporter.Report()
 	}
 
-	accessKey := os.Getenv("ANODOT_ACCESS_KEY")
 	ifSendToBC := defaultIfBlank(os.Getenv("ANODOT_SEND_TO_BC"), "true")
 	sendToBCPeriod, err := strconv.Atoi(defaultIfBlank(os.Getenv("ANODOT_SEND_TO_BC_PERIOD_SEC"), "60"))
 	if err != nil {
 		log.Fatalf("Could not parse ANODOT_SEND_TO_BC_PERIOD_SEC: %v", err)
 	}
-	if ifSendToBC != "false" && len(strings.TrimSpace(accessKey)) > 0 {
-		anodotPrometheus.SendAgentStatusToBC(primaryUrl, accessKey, token, sendToBCPeriod)
+	if ifSendToBC != "false" {
+		client, err := metrics3.NewAnodot30Client(*primaryUrl, &accessKey, &token, nil)
+		if err != nil {
+			log.Fatalf("failed to create anodot30 client: %v", err)
+		}
+		anodotPrometheus.SendAgentStatusToBC(client, sendToBCPeriod)
 	}
 
 	s.InitHttp(allWorkers)

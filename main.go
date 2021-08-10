@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/anodot/anodot-common/pkg/metrics3"
 	"net/http"
 	_ "net/http/pprof"
 	"net/url"
@@ -193,6 +194,23 @@ func main() {
 
 		reporter := anodotPrometheus.NewReporter(monitoringSubmitter, *parser, period)
 		reporter.Report()
+	}
+
+	ifSendToBC := defaultIfBlank(os.Getenv("ANODOT_SEND_TO_BC"), "true")
+	sendToBCPeriod, err := strconv.Atoi(defaultIfBlank(os.Getenv("ANODOT_SEND_TO_BC_PERIOD_SEC"), "60"))
+	if err != nil {
+		log.Fatalf("Could not parse ANODOT_SEND_TO_BC_PERIOD_SEC: %v", err)
+	}
+	if ifSendToBC != "false" {
+		accessKey := os.Getenv("ANODOT_ACCESS_KEY")
+		if len(strings.TrimSpace(accessKey)) == 0 {
+			log.Fatalf("ANODOT_ACCESS_KEY is not specified")
+		}
+		client, err := metrics3.NewAnodot30Client(*primaryUrl, &accessKey, &token, nil)
+		if err != nil {
+			log.Fatalf("failed to create anodot30 client: %v", err)
+		}
+		anodotPrometheus.SendAgentStatusToBC(client, sendToBCPeriod)
 	}
 
 	s.InitHttp(allWorkers)

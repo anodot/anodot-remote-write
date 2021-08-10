@@ -57,11 +57,6 @@ func main() {
 	flag.Parse()
 	token := envOrFlag("ANODOT_API_TOKEN", tokenFlagValue)
 
-	accessKey := os.Getenv("ANODOT_ACCESS_KEY")
-	if len(strings.TrimSpace(accessKey)) == 0 {
-		log.Fatalf("ANODOT_ACCESS_KEY is not specified")
-	}
-
 	log.Info(fmt.Sprintf("Anodot Remote Write version: '%s'. GitSHA: '%s'", version.VERSION, version.REVISION))
 	log.V(3).Infof("Go Version: %s", runtime.Version())
 	log.V(3).Infof("Go OS/Arch: %s/%s", runtime.GOOS, runtime.GOARCH)
@@ -207,6 +202,10 @@ func main() {
 		log.Fatalf("Could not parse ANODOT_SEND_TO_BC_PERIOD_SEC: %v", err)
 	}
 	if ifSendToBC != "false" {
+		accessKey := os.Getenv("ANODOT_ACCESS_KEY")
+		if len(strings.TrimSpace(accessKey)) == 0 {
+			log.Fatalf("ANODOT_ACCESS_KEY is not specified")
+		}
 		client, err := metrics3.NewAnodot30Client(*primaryUrl, &accessKey, &token, nil)
 		if err != nil {
 			log.Fatalf("failed to create anodot30 client: %v", err)

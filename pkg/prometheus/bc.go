@@ -24,7 +24,7 @@ func NewPipeline(startTime metrics3.AnodotTimestamp) metrics3.Pipeline {
 }
 
 var sendStatusToBCErrors = promauto.NewCounter(prometheus.CounterOpts{
-	Name: "anodot_send_status_to_bc_errors",
+	Name: "anodot_send_status_to_bc_errors_total",
 	Help: "Total number of errors occurred while sending status to BC",
 })
 
@@ -37,7 +37,7 @@ func SendAgentStatusToBC(client *metrics3.Anodot30Client, sendToBCPeriod int) {
 		for range ticker.C {
 			_, err := client.SendToBC(NewPipeline(startTime))
 			if err != nil {
-				sendStatusToBCErrors.Add(1)
+				sendStatusToBCErrors.Inc()
 				log.Errorf("Failed to send status to BC %v", err)
 			}
 		}

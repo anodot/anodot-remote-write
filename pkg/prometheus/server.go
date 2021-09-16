@@ -1,8 +1,10 @@
 package prometheus
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/anodot/anodot-remote-write/utils"
@@ -21,6 +23,8 @@ import (
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/prometheus/prompb"
 )
+
+const GRACEFUL_TIMEOUT_SECONDS int = 5
 
 type Receiver struct {
 	Port   int
@@ -66,7 +70,9 @@ func (rc *Receiver) protoToSamples(req *prompb.WriteRequest) model.Samples {
 	return samples
 }
 
-func (rc *Receiver) InitHttp(workers []*remote.Worker) {
+func (rc *Receiver) InitHttp(ctx context.Context, workers []*remote.Worker) {
+	var srv http.Server
+
 	log.V(2).Infof("Initializing %d remote write config(s): %s", len(workers), workers)
 
 	if os.Getenv("ANODOT_PUSH_METRICS_ENABLED") == "true" {
@@ -135,5 +141,35 @@ func (rc *Receiver) InitHttp(workers []*remote.Worker) {
 	log.V(2).Infof("Application metrics available at '*:%d/metrics' ", rc.Port)
 
 	versionInfo.With(prometheus.Labels{"version": version.VERSION, "git_sha1": version.REVISION}).Inc()
-	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", rc.Port), nil))
+
+	go func() {
+		log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", rc.Port), nil))
+	}()
+
+	// Do graceful shutdown
+	<-ctx.Done()
+
+	log.Info("start shutdown")
+
+	ctxShutDown, cancel := context.WithTimeout(context.Background(), time.Duration(GRACEFUL_TIMEOUT_SECONDS)*time.Second)
+	defer func() {
+		cancel()
+	}()
+
+	if err := srv.Shutdown(ctxShutDown); err != nil {
+		log.Fatalf("Server Shutdown Failed:%+s", err)
+	}
+
+	var wg sync.WaitGroup
+
+	wg.Add(len(workers))
+
+	for i := 0; i < len(workers); i++ {
+		workers[i].SetFinishWg(&wg)
+		workers[i].FlushBuffer <- true
+		workers[i].Done <- true
+	}
+	wg.Wait()
+
+	log.Info("Server exited properly")
 }

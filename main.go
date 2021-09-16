@@ -217,8 +217,8 @@ func main() {
 		anodotPrometheus.SendAgentStatusToBC(client, sendToBCPeriod)
 	}
 
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, syscall.SIGINT)
+	c := make(chan os.Signal, 2)
+	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
 
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -226,6 +226,9 @@ func main() {
 		oscall := <-c
 		log.Infof("system call:%+v", oscall)
 		cancel()
+
+		oscall = <-c
+		log.Fatalf("failed to finish gracefuly. system call:%+v", oscall)
 	}()
 
 	s.InitHttp(ctx, allWorkers)

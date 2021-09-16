@@ -161,15 +161,15 @@ func (rc *Receiver) InitHttp(ctx context.Context, workers []*remote.Worker) {
 	}
 
 	var wg sync.WaitGroup
-
 	wg.Add(len(workers))
 
 	for i := 0; i < len(workers); i++ {
-		workers[i].SetFinishWg(&wg)
+		workers[i].SetStopWg(&wg)
+
 		workers[i].FlushBuffer <- true
 		workers[i].Done <- true
 	}
-	wg.Wait()
 
+	wg.Wait()
 	log.Info("Server exited properly")
 }

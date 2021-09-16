@@ -28,8 +28,8 @@ type Worker struct {
 	FlushBuffer chan bool
 
 	*WorkerConfig
-	finishWg *sync.WaitGroup
-	Done     chan bool
+	stopWg *sync.WaitGroup
+	Done   chan bool
 }
 
 type WorkerConfig struct {
@@ -61,8 +61,8 @@ func NewWorkerConfig() (*WorkerConfig, error) {
 	return config, err
 }
 
-func (w *Worker) SetFinishWg(wg *sync.WaitGroup) {
-	w.finishWg = wg
+func (w *Worker) SetStopWg(wg *sync.WaitGroup) {
+	w.stopWg = wg
 }
 
 func (w *Worker) String() string {
@@ -239,8 +239,9 @@ func NewWorker(metricsSubmitter metrics.Submitter, config *WorkerConfig) (*Worke
 			}
 			select {
 			case <-w.Done:
-				log.Info("Finish worker")
-				w.finishWg.Done()
+				log.Info("Stop worker")
+				time.Sleep(5 * time.Second)
+				w.stopWg.Done()
 				return
 			default:
 			}

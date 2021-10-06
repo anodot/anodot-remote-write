@@ -240,7 +240,6 @@ func NewWorker(metricsSubmitter metrics.Submitter, config *WorkerConfig) (*Worke
 			select {
 			case <-w.Done:
 				log.Info("Stop worker")
-				time.Sleep(5 * time.Second)
 				w.stopWg.Done()
 				return
 			default:

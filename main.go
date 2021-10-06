@@ -1,17 +1,21 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
-	"github.com/anodot/anodot-common/pkg/metrics3"
 	"net/http"
 	_ "net/http/pprof"
 	"net/url"
 	"os"
+	"os/signal"
 	"runtime"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
+
+	"github.com/anodot/anodot-common/pkg/metrics3"
 
 	metrics2 "github.com/anodot/anodot-common/pkg/metrics"
 	anodotPrometheus "github.com/anodot/anodot-remote-write/pkg/prometheus"
@@ -213,7 +217,21 @@ func main() {
 		anodotPrometheus.SendAgentStatusToBC(client, sendToBCPeriod)
 	}
 
-	s.InitHttp(allWorkers)
+	c := make(chan os.Signal, 2)
+	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	go func() {
+		oscall := <-c
+		log.Infof("system call:%+v", oscall)
+		cancel()
+
+		oscall = <-c
+		log.Fatalf("failed to finish gracefuly. system call:%+v", oscall)
+	}()
+
+	s.InitHttp(ctx, allWorkers)
 }
 
 func tags(envVar string) map[string]string {

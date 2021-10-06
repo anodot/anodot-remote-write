@@ -25,9 +25,11 @@ type Worker struct {
 	mu            sync.RWMutex
 	MetricsBuffer []metrics.Anodot20Metric
 
-	flushBuffer chan bool
+	FlushBuffer chan bool
 
 	*WorkerConfig
+	stopWg *sync.WaitGroup
+	Done   chan bool
 }
 
 type WorkerConfig struct {
@@ -57,6 +59,10 @@ func NewWorkerConfig() (*WorkerConfig, error) {
 	}
 
 	return config, err
+}
+
+func (w *Worker) SetStopWg(wg *sync.WaitGroup) {
+	w.stopWg = wg
 }
 
 func (w *Worker) String() string {
@@ -158,7 +164,7 @@ func NewWorker(metricsSubmitter metrics.Submitter, config *WorkerConfig) (*Worke
 	}
 	maxEPSLimit.Set(float64(maxAllowedEps))
 
-	worker := &Worker{metricsSubmitter: metricsSubmitter, WorkerConfig: config, MetricsBuffer: make([]metrics.Anodot20Metric, 0, 100000), flushBuffer: make(chan bool, 4*config.MaxWorkers)}
+	worker := &Worker{metricsSubmitter: metricsSubmitter, WorkerConfig: config, MetricsBuffer: make([]metrics.Anodot20Metric, 0, 100000), FlushBuffer: make(chan bool, 4*config.MaxWorkers), Done: make(chan bool)}
 	log.V(4).Infof("Metrics per request size is : %d", worker.MetricsPerRequestSize)
 	log.V(4).Infof("Metrics buffer size is : %d", len(worker.MetricsBuffer))
 
@@ -182,14 +188,14 @@ func NewWorker(metricsSubmitter metrics.Submitter, config *WorkerConfig) (*Worke
 			}
 			if time.Since(*timestamp) > w.BatchSendDeadline {
 				log.V(4).Infof("reached BatchSendDeadline of '%s'. Flushing metrics buffer", w.BatchSendDeadline.String())
-				w.flushBuffer <- true
+				w.FlushBuffer <- true
 			}
 		}
 	}(worker)
 
 	go func(w *Worker) {
 		for {
-			<-w.flushBuffer
+			<-w.FlushBuffer
 			bufferedMetrics.WithLabelValues(w.metricsSubmitter.AnodotURL().Host).Set(float64(w.BufferSize()))
 
 			var chunkSize int
@@ -203,7 +209,7 @@ func NewWorker(metricsSubmitter metrics.Submitter, config *WorkerConfig) (*Worke
 				}
 
 				select {
-				case <-w.flushBuffer:
+				case <-w.FlushBuffer:
 				default:
 				}
 
@@ -231,6 +237,13 @@ func NewWorker(metricsSubmitter metrics.Submitter, config *WorkerConfig) (*Worke
 					}()
 				}
 			}
+			select {
+			case <-w.Done:
+				log.Info("Stop worker")
+				w.stopWg.Done()
+				return
+			default:
+			}
 			concurrentWorkers.WithLabelValues(w.metricsSubmitter.AnodotURL().Host).Set(float64(atomic.LoadInt64(&w.currentWorkers)))
 		}
 	}(worker)
@@ -256,7 +269,7 @@ func (w *Worker) Do(data []metrics.Anodot20Metric) {
 	w.mu.Unlock()
 
 	if w.BufferSize() >= w.MetricsPerRequestSize {
-		w.flushBuffer <- true
+		w.FlushBuffer <- true
 	}
 }
 

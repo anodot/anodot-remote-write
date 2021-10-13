@@ -8,9 +8,12 @@ services:
     environment:
       ANODOT_LOG_LEVEL: "3"
       ANODOT_HTTP_DEBUG_ENABLED: "false"
+      # see https://github.com/anodot/anodot-remote-write/wiki/2.-Installation for more details
+      ANODOT_URL: "https://api.anodot.com"
+      ANODOT_API_TOKEN: "CHANGE_ME"
+      ANODOT_ACCESS_KEY: "CHANGE_ME"
     ports:
       - "1234:1234"
-    command: ["-url=https://api.anodot.com","-token=<CHANGE_ME>","-workers=20"]
     # used to join default docker bridge network
     #network_mode: bridge
 

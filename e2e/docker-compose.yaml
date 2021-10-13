@@ -31,8 +31,9 @@ services:
       - ./metric-relabel.yml:/mnt/relabel.yml:ro
     ports:
       - "1234:1234"
-    command: ["-url=http://anodot-metrics-stub:8080","-token=should_be_taken_from_env","-workers=20"]
+    command: ["-token=should_be_taken_from_env","-workers=20"]
     environment:
+      ANODOT_URL: "http://anodot-metrics-stub:8080"
       ANODOT_METRICS_PER_REQUEST_SIZE: 4
       ANODOT_LOG_LEVEL: "5"
       ANODOT_API_TOKEN: "123456"

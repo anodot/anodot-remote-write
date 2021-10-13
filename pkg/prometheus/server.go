@@ -152,7 +152,7 @@ func (rc *Receiver) InitHttp(ctx context.Context, workers []*remote.Worker) {
 	log.Info("start shutdown")
 
 	ctxShutDown, cancel := context.WithTimeout(context.Background(), time.Duration(GRACEFUL_TIMEOUT_SECONDS)*time.Second)
-	
+
 	defer func() {
 		cancel()
 	}()

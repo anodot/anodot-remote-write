@@ -127,7 +127,7 @@ func main() {
 		parser.MetricsProcessors = append(parser.MetricsProcessors, &anodotPrometheus.KubernetesPodNameProcessor{PodsData: mapping})
 	}
 
-	primaryUrl, err := url.Parse(*serverUrl)
+	primaryUrl, err := url.Parse(envOrFlag("ANODOT_URL", serverUrl))
 	if err != nil {
 		log.Fatalf("Failed to construct Anodot server url with url=%q. Error:%s", *serverUrl, err.Error())
 	}

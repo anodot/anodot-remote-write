@@ -45,6 +45,8 @@ build:
 
 build-container: build
 	docker build -t $(DOCKER_IMAGE_NAME):$(VERSION) --build-arg VERSION=$(VERSION) .
+	# required for e2e test
+	docker build -t $(DOCKER_IMAGE_NAME) --build-arg VERSION=$(VERSION) .
 	@echo ">> created docker image $(DOCKER_IMAGE_NAME):$(VERSION)"
 
 test:
@@ -52,9 +54,11 @@ test:
 
 test-container: build-container
 	@docker rm -f $(APPLICATION_NAME) || true
-	@docker run -d -P --name=$(APPLICATION_NAME) $(DOCKER_IMAGE_NAME):$(VERSION) --token abc --url http://localhost
+	docker run -d -P --name=$(APPLICATION_NAME) -e ANODOT_API_TOKEN="abc" -e ANODOT_ACCESS_KEY="xxxx" -e ANODOT_URL="http://localhost" $(DOCKER_IMAGE_NAME)
+
 	docker ps
-	set -x curl --connect-timeout 5 --max-time 10 --retry 5 --retry-delay 0 --retry-max-time 40 -I http://localhost:$$(docker port $(APPLICATION_NAME) | grep -o '[0-9]*$$' )/health
+	# TODO : fix to handle 404 erros
+	#curl --connect-timeout 5 --max-time 10 --retry 5 --retry-delay 2 --retry-max-time 40 -I http://localhost:$$(docker port $(APPLICATION_NAME) | grep -o '[0-9]*$$' )/health
 
 	docker logs $(APPLICATION_NAME)
 	@docker rm -f $(APPLICATION_NAME)

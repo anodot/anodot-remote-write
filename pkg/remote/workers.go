@@ -77,7 +77,7 @@ func (w *Worker) BufferSize() int {
 	return size
 }
 
-func (w *Worker) LastTimestamp() *time.Time {
+func (w *Worker) FirstTimestamp() *time.Time {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
 
@@ -85,7 +85,7 @@ func (w *Worker) LastTimestamp() *time.Time {
 		return nil
 	}
 
-	res := w.MetricsBuffer[len(w.MetricsBuffer)-1].Timestamp
+	res := w.MetricsBuffer[0].Timestamp
 	return &res.Time
 }
 
@@ -182,11 +182,11 @@ func NewWorker(metricsSubmitter metrics.Submitter, config *WorkerConfig) (*Worke
 		ticker := time.NewTicker(w.BatchSendDeadline)
 		defer ticker.Stop()
 		for range ticker.C {
-			timestamp := w.LastTimestamp()
-			if timestamp == nil {
+			oldestTimestamp := w.FirstTimestamp()
+			if oldestTimestamp == nil {
 				continue
 			}
-			if time.Since(*timestamp) > w.BatchSendDeadline {
+			if time.Since(*oldestTimestamp) > w.BatchSendDeadline {
 				log.V(4).Infof("reached BatchSendDeadline of '%s'. Flushing metrics buffer", w.BatchSendDeadline.String())
 				w.FlushBuffer <- true
 			}

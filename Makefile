@@ -41,7 +41,7 @@ install-errcheck:
 
 build:
 	@echo ">> building binaries with version $(VERSION)"
-	$(BUILD_FLAGS) $(GO) build -ldflags "-s -w -X github.com/anodot/anodot-remote-write/pkg/version.REVISION=$(GIT_COMMIT)" -o $(APPLICATION_NAME)
+	$(BUILD_FLAGS) $(GO) build -ldflags "-s -w -X github.com/anodot/anodot-remote-write/pkg/version.REVISION=$(GIT_COMMIT) -X github.com/anodot/anodot-remote-write/pkg/version.VERSION=$(VERSION)" -o $(APPLICATION_NAME)
 
 build-container: build
 	docker build -t $(DOCKER_IMAGE_NAME):$(VERSION) --build-arg VERSION=$(VERSION) .
